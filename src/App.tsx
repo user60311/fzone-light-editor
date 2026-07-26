@@ -2,8 +2,10 @@ import {
   AlertTriangle,
   Check,
   Copy,
+  Database,
   Download,
   FileImage,
+  Globe2,
   Plus,
   QrCode,
   RotateCcw,
@@ -24,6 +26,21 @@ import {
   parseFzonePayload,
 } from './fzone'
 import type { ChannelKey, FzonePoint, FzoneProfile } from './fzone'
+
+type CommunityProfile = {
+  id: string
+  name: string
+  description: string
+  modelLabel: string
+  prefix: string
+  profileId: number
+  pointCount: number
+  startTime: string
+  endTime: string
+  checksum: string
+  tags: string
+  createdAt: string
+}
 
 const channelMeta: Array<{ key: ChannelKey; label: string; color: string }> = [
   { key: 'white', label: 'W', color: '#f8fafc' },
@@ -48,6 +65,13 @@ function App() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('Beispielprofil geladen.')
   const [qrDataUrl, setQrDataUrl] = useState('')
+  const [communityProfiles, setCommunityProfiles] = useState<CommunityProfile[]>([])
+  const [communityMessage, setCommunityMessage] = useState('Community-Speicher wird verbunden.')
+  const [communityAvailable, setCommunityAvailable] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [publishName, setPublishName] = useState(() => suggestProfileName(parseFzonePayload(SAMPLE_PAYLOADS[1].value)))
+  const [publishDescription, setPublishDescription] = useState('')
+  const [publishTags, setPublishTags] = useState('')
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const encodedPayload = useMemo(() => {
@@ -88,11 +112,18 @@ function App() {
     }
   }, [encodedPayload])
 
+  useEffect(() => {
+    loadCommunityProfiles()
+  }, [])
+
   function importPayload(payload: string, source = 'Payload importiert.') {
     try {
       const nextProfile = parseFzonePayload(payload)
       setProfile(nextProfile)
       setRawInput(payload)
+      setPublishName(suggestProfileName(nextProfile))
+      setPublishDescription('')
+      setPublishTags('')
       setError('')
       setNotice(source)
     } catch (exception) {
@@ -183,6 +214,77 @@ function App() {
     setNotice('Payload in die Zwischenablage kopiert.')
   }
 
+  async function loadCommunityProfiles() {
+    try {
+      const response = await fetch('/api/profiles')
+
+      if (!response.ok) {
+        throw new Error('Community-API nicht erreichbar.')
+      }
+
+      const data = (await response.json()) as { profiles?: CommunityProfile[] }
+      setCommunityProfiles(data.profiles ?? [])
+      setCommunityAvailable(true)
+      setCommunityMessage((data.profiles ?? []).length ? 'Community-Profile geladen.' : 'Noch keine Community-Profile gespeichert.')
+    } catch {
+      setCommunityAvailable(false)
+      setCommunityMessage('Community-Speicher ist auf diesem Hosting noch nicht verbunden.')
+    }
+  }
+
+  async function publishProfile() {
+    if (!encodedPayload || isPublishing) {
+      return
+    }
+
+    setIsPublishing(true)
+    setCommunityMessage('Profil wird veröffentlicht.')
+
+    try {
+      const response = await fetch('/api/profiles', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: publishName,
+          description: publishDescription,
+          tags: publishTags,
+          payload: encodedPayload,
+          website: '',
+        }),
+      })
+
+      const data = (await response.json()) as { error?: string }
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Das Profil konnte nicht gespeichert werden.')
+      }
+
+      setCommunityAvailable(true)
+      setCommunityMessage('Profil wurde veröffentlicht.')
+      await loadCommunityProfiles()
+    } catch (exception) {
+      setCommunityMessage(exception instanceof Error ? exception.message : 'Das Profil konnte nicht gespeichert werden.')
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
+  async function loadCommunityProfile(id: string) {
+    try {
+      const response = await fetch(`/api/profiles/${id}`)
+      const data = (await response.json()) as { profile?: CommunityProfile & { payload?: string }; error?: string }
+
+      if (!response.ok || !data.profile?.payload) {
+        throw new Error(data.error ?? 'Das Profil konnte nicht geladen werden.')
+      }
+
+      importPayload(data.profile.payload, `${data.profile.name} geladen.`)
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : 'Das Profil konnte nicht geladen werden.')
+      setNotice('')
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="app-hero">
@@ -238,6 +340,27 @@ function App() {
                 {sample.label}
               </button>
             ))}
+          </div>
+
+          <div className="community-block">
+            <div className="panel-heading mini">
+              <Database size={18} aria-hidden="true" />
+              <h3>Community-Profile</h3>
+            </div>
+            <p className={communityAvailable ? 'community-status online' : 'community-status'}>
+              {communityMessage}
+            </p>
+            <div className="community-list" aria-label="Community-Profile">
+              {communityProfiles.map((item) => (
+                <button type="button" className="community-card" key={item.id} onClick={() => loadCommunityProfile(item.id)}>
+                  <strong>{item.name}</strong>
+                  <span>{item.modelLabel}</span>
+                  <small>
+                    {item.pointCount} Punkte / {item.startTime}-{item.endTime}
+                  </small>
+                </button>
+              ))}
+            </div>
           </div>
 
           {(error || notice) && (
@@ -360,6 +483,34 @@ function App() {
             </a>
           </div>
 
+          <div className="publish-box">
+            <div className="panel-heading mini">
+              <Globe2 size={18} aria-hidden="true" />
+              <h3>Profil veröffentlichen</h3>
+            </div>
+            <label className="field">
+              <span>Profilname</span>
+              <input value={publishName} maxLength={80} onChange={(event) => setPublishName(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>Beschreibung</span>
+              <textarea
+                className="compact-textarea"
+                value={publishDescription}
+                maxLength={360}
+                onChange={(event) => setPublishDescription(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Tags</span>
+              <input value={publishTags} maxLength={120} placeholder="Low-Tech, CO2, Nano" onChange={(event) => setPublishTags(event.target.value)} />
+            </label>
+            <button type="button" onClick={publishProfile} disabled={!encodedPayload || isPublishing}>
+              <Globe2 size={17} aria-hidden="true" />
+              {isPublishing ? 'Speichern' : 'Veröffentlichen'}
+            </button>
+          </div>
+
           <div className="checksum-box">
             <div>
               <span>Neue Länge</span>
@@ -379,6 +530,18 @@ function App() {
       </section>
     </main>
   )
+}
+
+function suggestProfileName(profile: FzoneProfile) {
+  const sorted = [...profile.points].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute))
+  const first = sorted[0]
+  const last = sorted.at(-1)!
+
+  return `${profile.modelLabel} / ${sorted.length} Punkte / ${formatPointTime(first)}-${formatPointTime(last)}`
+}
+
+function formatPointTime(point: FzonePoint) {
+  return `${point.hour.toString().padStart(2, '0')}:${point.minute.toString().padStart(2, '0')}`
 }
 
 function loadImage(src: string) {

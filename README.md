@@ -1,18 +1,19 @@
 # FZone Bright Light QR Editor
 
-Lokale Browser-App zum Lesen, Bearbeiten und Erzeugen von FZone Lichtprogramm-QR-Codes.
+Browser-App zum Lesen, Bearbeiten, Veröffentlichen und Erzeugen von FZone Lichtprogramm-QR-Codes.
 
 ## MVP-Funktionen
 
-- QR-Code-Bilder hochladen und per ZXing dekodieren
-- QR-Rohdaten direkt einfuegen
+- QR-Code-Bilder hochladen und per jsQR dekodieren
+- QR-Rohdaten direkt einfügen
 - Modell-Prefix und Header anzeigen
 - FZone-Schaltpunkte im bekannten 10-Byte-Format parsen
 - interne Reihenfolge `WGBR` als `WRGB` anzeigen
-- Checksumme `(sum(bytes) + 0x55) mod 256` pruefen und neu berechnen
-- Schaltpunkte bearbeiten, hinzufuegen und loeschen
-- neuen QR-Code als grosses Canvas anzeigen, kopieren oder als PNG speichern
-- Regressionstests fuer die drei analysierten Beispielcodes
+- Checksumme `(sum(bytes) + 0x55) mod 256` prüfen und neu berechnen
+- Schaltpunkte bearbeiten, hinzufügen und löschen
+- neuen QR-Code als großes Canvas anzeigen, kopieren oder als PNG speichern
+- Community-Profile über Cloudflare Pages Functions und D1 speichern
+- Regressionstests für die drei analysierten Beispielcodes
 
 ## Beobachtete Modelle
 
@@ -27,10 +28,28 @@ npm install
 npm run dev
 ```
 
-## Pruefung
+## Prüfung
 
 ```bash
 npm test
 npm run lint
 npm run build
+```
+
+## Community-Speicher mit Cloudflare D1
+
+Die statische App läuft weiterhin auf GitHub Pages. Gemeinsames Speichern aller Nutzerprofile benötigt Cloudflare Pages mit D1.
+
+1. Cloudflare Pages Projekt mit diesem GitHub-Repo verbinden.
+2. Build command: `npm run build`
+3. Build output directory: `dist`
+4. D1-Datenbank anlegen: `npx wrangler d1 create fzone-light-editor`
+5. Die ausgegebene `database_id` in `wrangler.jsonc` eintragen.
+6. Migration anwenden: `npm run d1:migrate:remote`
+7. In Cloudflare Pages die D1-Bindung `DB` auf diese Datenbank setzen, falls sie nicht automatisch aus `wrangler.jsonc` übernommen wird.
+
+Lokaler Cloudflare-Test:
+
+```bash
+npm run pages:dev
 ```
