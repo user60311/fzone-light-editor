@@ -476,15 +476,17 @@ function App() {
                     <CommunityMeta item={item} />
                   </button>
                   {adminToken.trim() && (
-                    <button
-                      type="button"
-                      className="community-delete"
-                      onClick={() => deleteCommunityProfile(item.id, item.name)}
-                      aria-label={`${item.name} löschen`}
-                    >
-                      <Trash2 size={16} aria-hidden="true" />
-                      Löschen
-                    </button>
+                    <div className="community-actions">
+                      <button
+                        type="button"
+                        className="community-delete"
+                        onClick={() => deleteCommunityProfile(item.id, item.name)}
+                        aria-label={`${item.name} löschen`}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                        Löschen
+                      </button>
+                    </div>
                   )}
                 </article>
               ))}

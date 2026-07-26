@@ -427,10 +427,6 @@ button.ghost:hover {
   border-color: rgba(80, 252, 218, 0.5);
 }
 
-.community-card.admin-enabled {
-  padding-bottom: 52px;
-}
-
 .community-load {
   display: grid;
   justify-items: start;
@@ -479,10 +475,15 @@ button.ghost:hover {
   font-size: 11px;
 }
 
+.community-actions {
+  display: grid;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 85, 115, 0.2);
+}
+
 .community-delete {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
+  width: 100%;
   min-height: 32px;
   padding: 0 10px;
   color: #ffd0d8;
