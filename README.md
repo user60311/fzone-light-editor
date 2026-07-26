@@ -48,7 +48,8 @@ Die App kann kostenlos auf GitHub Pages laufen. Für gemeinsam gespeicherte Prof
 5. Root directory: `/`
 6. D1-Datenbank anlegen: `npx wrangler d1 create fzone-light-editor`
 7. In Cloudflare beim Worker unter Settings > Bindings die D1-Bindung `DB` auf diese Datenbank setzen.
-8. Migration anwenden: `npm run d1:migrate:remote`
+8. Optional für Löschen in der App ein Secret `ADMIN_TOKEN` setzen.
+9. Migration anwenden: `npm run d1:migrate:remote`
 
 Die Datei `wrangler.jsonc` liefert dabei `dist` als Static Assets aus und schickt nur `/api/*` an den Worker.
 
@@ -59,3 +60,7 @@ npm run worker:dev
 ```
 
 Wenn die D1-Bindung noch fehlt, läuft die App trotzdem, aber der Community-Bereich meldet, dass der Speicher noch nicht verbunden ist.
+
+## Admin-Löschen
+
+Community-Profile können in der App gelöscht werden, wenn im Worker ein Secret `ADMIN_TOKEN` gesetzt ist. Der Wert wird in der App in das Feld `Admin-Code` eingetragen und nur lokal im Browser gespeichert.

@@ -4,6 +4,7 @@ import { parsePayload } from '../functions/_shared/fzone'
 type Env = {
   ASSETS: Fetcher
   DB?: D1Database
+  ADMIN_TOKEN?: string
 }
 
 type CommunityProfileRow = {
@@ -41,6 +42,10 @@ export default {
 
     if (detailMatch && request.method === 'GET') {
       return getProfile(env, detailMatch[1])
+    }
+
+    if (detailMatch && request.method === 'DELETE') {
+      return deleteProfile(env, request, detailMatch[1])
     }
 
     if (url.pathname.startsWith('/api/')) {
@@ -152,7 +157,24 @@ async function createProfile(env: Env, request: Request) {
       )
       .run()
   } catch {
-    return error('Dieses Profil ist bereits in der Community-Bibliothek gespeichert.', 409)
+    const duplicate = await db
+      .prepare(
+        `SELECT id, name, description, model_label, prefix, profile_id, point_count, start_time, end_time, checksum, tags, created_at
+         FROM community_profiles
+         WHERE payload = ?`,
+      )
+      .bind(payload)
+      .first<CommunityProfileRow>()
+
+    return json(
+      {
+        error: duplicate
+          ? `Dieses Profil existiert bereits: ${duplicate.name}.`
+          : 'Dieses Profil ist bereits in der Community-Bibliothek gespeichert.',
+        duplicateProfile: duplicate ? rowToProfile(duplicate) : undefined,
+      },
+      { status: 409 },
+    )
   }
 
   return json(
@@ -204,12 +226,48 @@ async function getProfile(env: Env, id: string) {
   })
 }
 
+async function deleteProfile(env: Env, request: Request, id: string) {
+  const db = requireDb(env)
+
+  if (db instanceof Response) {
+    return db
+  }
+
+  const auth = authorizeAdmin(env, request)
+
+  if (auth instanceof Response) {
+    return auth
+  }
+
+  const result = await db.prepare('DELETE FROM community_profiles WHERE id = ?').bind(id).run()
+
+  if (!result.meta.changes) {
+    return error('Profil nicht gefunden.', 404)
+  }
+
+  return json({ deleted: true })
+}
+
 function requireDb(env: Env) {
   if (!env.DB) {
     return error('Community-Speicher ist noch nicht verbunden.', 503)
   }
 
   return env.DB
+}
+
+function authorizeAdmin(env: Env, request: Request) {
+  if (!env.ADMIN_TOKEN) {
+    return error('Admin-Löschen ist noch nicht eingerichtet.', 503)
+  }
+
+  const token = request.headers.get('x-admin-token') ?? ''
+
+  if (!token || token !== env.ADMIN_TOKEN) {
+    return error('Admin-Code ist ungültig.', 401)
+  }
+
+  return true
 }
 
 function rowToProfile(row: CommunityProfileRow) {

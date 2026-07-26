@@ -6,10 +6,12 @@ import {
   Download,
   FileImage,
   Globe2,
+  KeyRound,
   Plus,
   QrCode,
   RotateCcw,
   ScanLine,
+  Search,
   Trash2,
 } from 'lucide-react'
 import jsQR from 'jsqr'
@@ -72,6 +74,9 @@ function App() {
   const [publishName, setPublishName] = useState(() => suggestProfileName(parseFzonePayload(SAMPLE_PAYLOADS[1].value)))
   const [publishDescription, setPublishDescription] = useState('')
   const [publishTags, setPublishTags] = useState('')
+  const [communityQuery, setCommunityQuery] = useState('')
+  const [communityModel, setCommunityModel] = useState('Alle Modelle')
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem('fzone-admin-token') ?? '')
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const encodedPayload = useMemo(() => {
@@ -112,6 +117,24 @@ function App() {
     }
   }, [encodedPayload])
 
+  const modelOptions = useMemo(
+    () => ['Alle Modelle', ...Array.from(new Set(communityProfiles.map((item) => item.modelLabel))).sort()],
+    [communityProfiles],
+  )
+
+  const filteredCommunityProfiles = useMemo(() => {
+    const query = communityQuery.trim().toLowerCase()
+
+    return communityProfiles.filter((item) => {
+      const matchesModel = communityModel === 'Alle Modelle' || item.modelLabel === communityModel
+      const searchable = `${item.name} ${item.description} ${item.tags} ${item.modelLabel} ${item.prefix}`.toLowerCase()
+
+      return matchesModel && (!query || searchable.includes(query))
+    })
+  }, [communityProfiles, communityModel, communityQuery])
+
+  const unknownModel = profile.modelLabel.startsWith('Unbekanntes Modell')
+
   useEffect(() => {
     loadCommunityProfiles()
   }, [])
@@ -125,7 +148,11 @@ function App() {
       setPublishDescription('')
       setPublishTags('')
       setError('')
-      setNotice(source)
+      setNotice(
+        nextProfile.modelLabel.startsWith('Unbekanntes Modell')
+          ? `${source} Modell ist noch nicht bekannt.`
+          : source,
+      )
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Der QR-Code konnte nicht gelesen werden.')
       setNotice('')
@@ -253,10 +280,14 @@ function App() {
         }),
       })
 
-      const data = (await response.json()) as { error?: string }
+      const data = (await response.json()) as { error?: string; duplicateProfile?: CommunityProfile }
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Das Profil konnte nicht gespeichert werden.')
+        throw new Error(
+          data.duplicateProfile
+            ? `Dieses Profil existiert bereits: ${data.duplicateProfile.name}.`
+            : data.error ?? 'Das Profil konnte nicht gespeichert werden.',
+        )
       }
 
       setCommunityAvailable(true)
@@ -283,6 +314,58 @@ function App() {
       setError(exception instanceof Error ? exception.message : 'Das Profil konnte nicht geladen werden.')
       setNotice('')
     }
+  }
+
+  async function deleteCommunityProfile(id: string, name: string) {
+    if (!adminToken.trim()) {
+      setCommunityMessage('Bitte zuerst den Admin-Code eintragen.')
+      return
+    }
+
+    if (!window.confirm(`Profil "${name}" wirklich löschen?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/profiles/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-token': adminToken.trim() },
+      })
+      const data = (await response.json()) as { error?: string }
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Das Profil konnte nicht gelöscht werden.')
+      }
+
+      setCommunityMessage(`Profil gelöscht: ${name}`)
+      await loadCommunityProfiles()
+    } catch (exception) {
+      setCommunityMessage(exception instanceof Error ? exception.message : 'Das Profil konnte nicht gelöscht werden.')
+    }
+  }
+
+  function updateAdminToken(value: string) {
+    setAdminToken(value)
+
+    if (value.trim()) {
+      localStorage.setItem('fzone-admin-token', value.trim())
+    } else {
+      localStorage.removeItem('fzone-admin-token')
+    }
+  }
+
+  async function copyModelSuggestion() {
+    const header = `04 ${profile.profileId.toString(16).padStart(2, '0').toUpperCase()}`
+    const suggestion = [
+      'Unknown FZone model suggestion',
+      `Prefix: ${profile.prefix}`,
+      `Header: ${header}`,
+      `Points: ${profile.points.length}`,
+      `Payload: ${encodedPayload}`,
+    ].join('\n')
+
+    await navigator.clipboard.writeText(suggestion)
+    setNotice('Modellvorschlag in die Zwischenablage kopiert.')
   }
 
   return (
@@ -350,16 +433,58 @@ function App() {
             <p className={communityAvailable ? 'community-status online' : 'community-status'}>
               {communityMessage}
             </p>
+            <div className="community-tools">
+              <label className="field">
+                <span>Suchen</span>
+                <div className="input-with-icon">
+                  <Search size={15} aria-hidden="true" />
+                  <input value={communityQuery} onChange={(event) => setCommunityQuery(event.target.value)} placeholder="Name, Tag, Modell" />
+                </div>
+              </label>
+              <label className="field">
+                <span>Modell</span>
+                <select value={communityModel} onChange={(event) => setCommunityModel(event.target.value)}>
+                  {modelOptions.map((model) => (
+                    <option key={model}>{model}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Admin-Code</span>
+                <div className="input-with-icon">
+                  <KeyRound size={15} aria-hidden="true" />
+                  <input type="password" value={adminToken} onChange={(event) => updateAdminToken(event.target.value)} placeholder="optional" />
+                </div>
+              </label>
+            </div>
             <div className="community-list" aria-label="Community-Profile">
-              {communityProfiles.map((item) => (
-                <button type="button" className="community-card" key={item.id} onClick={() => loadCommunityProfile(item.id)}>
-                  <strong>{item.name}</strong>
-                  <span>{item.modelLabel}</span>
-                  <small>
-                    {item.pointCount} Punkte / {item.startTime}-{item.endTime}
-                  </small>
-                </button>
+              {filteredCommunityProfiles.map((item) => (
+                <article className="community-card" key={item.id}>
+                  <button type="button" className="community-load" onClick={() => loadCommunityProfile(item.id)}>
+                    <strong>{item.name}</strong>
+                    <span>{item.modelLabel}</span>
+                    <small>
+                      {item.pointCount} Punkte / {item.startTime}-{item.endTime}
+                    </small>
+                    <small>
+                      Prefix {item.prefix} / Header 04 {item.profileId.toString(16).padStart(2, '0').toUpperCase()}
+                    </small>
+                    {item.description && <small>{item.description}</small>}
+                    <CommunityMeta item={item} />
+                  </button>
+                  {adminToken.trim() && (
+                    <button
+                      type="button"
+                      className="icon-button community-delete"
+                      onClick={() => deleteCommunityProfile(item.id, item.name)}
+                      aria-label={`${item.name} löschen`}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                    </button>
+                  )}
+                </article>
               ))}
+              {!filteredCommunityProfiles.length && <p className="empty-state">Keine passenden Profile gefunden.</p>}
             </div>
           </div>
 
@@ -399,6 +524,23 @@ function App() {
               />
             </label>
           </div>
+
+          {unknownModel && (
+            <div className="unknown-model">
+              <AlertTriangle size={18} aria-hidden="true" />
+              <div>
+                <strong>Unbekanntes Modell erkannt</strong>
+                <p>
+                  Prefix <code>{profile.prefix}</code> mit Header{' '}
+                  <code>04 {profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code> ist noch nicht zugeordnet.
+                </p>
+              </div>
+              <button type="button" className="ghost" onClick={copyModelSuggestion}>
+                <Copy size={16} aria-hidden="true" />
+                Modell vorschlagen
+              </button>
+            </div>
+          )}
 
           <ProfileChart points={profile.points} />
 
@@ -528,7 +670,26 @@ function App() {
           </label>
         </aside>
       </section>
+      <footer className="app-footer">
+        Inoffizielles Community-Tool. Nicht verbunden mit FZone; QR-Profile werden nur freiwillig veröffentlicht.
+      </footer>
     </main>
+  )
+}
+
+function CommunityMeta({ item }: { item: CommunityProfile }) {
+  const date = new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  }).format(new Date(item.createdAt))
+
+  return (
+    <div className="community-meta">
+      <span>{date}</span>
+      <span>Checksumme {item.checksum}</span>
+      {item.tags && <span>{item.tags}</span>}
+    </div>
   )
 }
 

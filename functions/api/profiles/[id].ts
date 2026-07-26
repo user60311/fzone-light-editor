@@ -2,6 +2,7 @@ import { error, json } from '../../_shared/http'
 
 type Env = {
   DB: D1Database
+  ADMIN_TOKEN?: string
 }
 
 type ProfileDetailRow = {
@@ -56,4 +57,28 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
       createdAt: row.created_at,
     },
   })
+}
+
+export const onRequestDelete: PagesFunction<Env> = async ({ env, params, request }) => {
+  const id = typeof params.id === 'string' ? params.id : ''
+
+  if (!/^[\da-f-]{36}$/i.test(id)) {
+    return error('Ungültige Profil-ID.', 400)
+  }
+
+  if (!env.ADMIN_TOKEN) {
+    return error('Admin-Löschen ist noch nicht eingerichtet.', 503)
+  }
+
+  if ((request.headers.get('x-admin-token') ?? '') !== env.ADMIN_TOKEN) {
+    return error('Admin-Code ist ungültig.', 401)
+  }
+
+  const result = await env.DB.prepare('DELETE FROM community_profiles WHERE id = ?').bind(id).run()
+
+  if (!result.meta.changes) {
+    return error('Profil nicht gefunden.', 404)
+  }
+
+  return json({ deleted: true })
 }

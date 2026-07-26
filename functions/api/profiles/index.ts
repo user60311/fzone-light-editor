@@ -3,6 +3,7 @@ import { parsePayload } from '../../_shared/fzone'
 
 type Env = {
   DB: D1Database
+  ADMIN_TOKEN?: string
 }
 
 type CommunityProfileRow = {
@@ -106,7 +107,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
       )
       .run()
   } catch {
-    return error('Dieses Profil ist bereits in der Community-Bibliothek gespeichert.', 409)
+    const duplicate = await env.DB.prepare(
+      `SELECT id, name, description, model_label, prefix, profile_id, point_count, start_time, end_time, checksum, tags, created_at
+       FROM community_profiles
+       WHERE payload = ?`,
+    )
+      .bind(payload)
+      .first<CommunityProfileRow>()
+
+    return json(
+      {
+        error: duplicate
+          ? `Dieses Profil existiert bereits: ${duplicate.name}.`
+          : 'Dieses Profil ist bereits in der Community-Bibliothek gespeichert.',
+        duplicateProfile: duplicate ? rowToProfile(duplicate) : undefined,
+      },
+      { status: 409 },
+    )
   }
 
   return json(
