@@ -190,13 +190,12 @@ function App() {
           <p className="eyebrow">FZone Bright Light Lab</p>
           <h1>QR-Profile lesen, verstehen und neu erzeugen.</h1>
           <p className="hero-copy">
-            Lokaler Editor fuer FZone Solo und Brite Lichtprogramme mit Headerpruefung, WRGB-Tabelle,
-            Checksumme und exportierbarem QR-Code.
+            Präzise Tageskurven für FZone Lichtprofile: importieren, feinjustieren und als scanbaren QR-Code ausgeben.
           </p>
         </div>
         <div className="hero-status" aria-label="Profilstatus">
           <StatusPill ok={profile.checksumValid} label="Checksumme" />
-          <StatusPill ok={profile.lengthValid} label="Laenge" />
+          <StatusPill ok={profile.lengthValid} label="Länge" />
           <div className="metric">
             <strong>{profile.points.length}</strong>
             <span>Schaltpunkte</span>
@@ -254,7 +253,7 @@ function App() {
             <div>
               <h2>{profile.modelLabel}</h2>
               <p>
-                Prefix <code>{profile.prefix}</code> · Header <code>04 {profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code>
+                Prefix <code>{profile.prefix}</code> / Header <code>04 {profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code>
               </p>
             </div>
             <button type="button" onClick={addPoint} disabled={profile.points.length >= MAX_POINTS}>
@@ -319,7 +318,7 @@ function App() {
                       {channelMeta.map((channel) => (
                         <td key={channel.key}>
                           <input
-                            aria-label={`${channel.label} Intensitaet`}
+                            aria-label={`${channel.label} Intensität`}
                             type="number"
                             min={0}
                             max={255}
@@ -329,7 +328,7 @@ function App() {
                         </td>
                       ))}
                       <td>
-                        <button type="button" className="icon-button" onClick={() => removePoint(point.id)} aria-label="Schaltpunkt loeschen">
+                        <button type="button" className="icon-button" onClick={() => removePoint(point.id)} aria-label="Schaltpunkt löschen">
                           <Trash2 size={17} aria-hidden="true" />
                         </button>
                       </td>
@@ -363,7 +362,7 @@ function App() {
 
           <div className="checksum-box">
             <div>
-              <span>Neue Laenge</span>
+              <span>Neue Länge</span>
               <strong>{generatedProfile?.declaredLength ?? '-'}</strong>
             </div>
             <div>

@@ -89,13 +89,13 @@ export function parseFzonePayload(payload: string): FzoneProfile {
   const hex = compact.slice(aaIndex)
 
   if (hex.length % 2 !== 0 || !/^[\da-f]+$/i.test(hex)) {
-    throw new Error('Der Datenblock nach dem Prefix ist kein gueltiger Hex-String.')
+    throw new Error('Der Datenblock nach dem Prefix ist kein gültiger Hex-String.')
   }
 
   const bytes = hexToBytes(hex)
 
   if (bytes.length < 7) {
-    throw new Error('Der Datenblock ist zu kurz fuer ein FZone-Lichtprofil.')
+    throw new Error('Der Datenblock ist zu kurz für ein FZone-Lichtprofil.')
   }
 
   if (bytes[0] !== 0xaa || bytes[1] !== 0x06) {
@@ -103,7 +103,7 @@ export function parseFzonePayload(payload: string): FzoneProfile {
   }
 
   if (bytes[2] !== 0x00) {
-    throw new Error('Das dritte Header-Byte ist unerwartet. Dieses Profil wird noch nicht unterstuetzt.')
+    throw new Error('Das dritte Header-Byte ist unerwartet. Dieses Profil wird noch nicht unterstützt.')
   }
 
   const declaredLength = bytes[3]
@@ -125,7 +125,7 @@ export function parseFzonePayload(payload: string): FzoneProfile {
   const points = chunk(records, RECORD_SIZE).map((record, index) => parsePoint(record, index))
 
   if (points.length > MAX_POINTS) {
-    throw new Error(`Das Profil enthaelt ${points.length} Punkte. Unterstuetzt sind derzeit bis ${MAX_POINTS}.`)
+    throw new Error(`Das Profil enthält ${points.length} Punkte. Unterstützt sind derzeit bis ${MAX_POINTS}.`)
   }
 
   return {
@@ -181,7 +181,7 @@ function parsePoint(record: number[], index: number): FzonePoint {
   const [hour, minute, white, green, blue, red] = record
 
   if (hour > 23 || minute > 59) {
-    throw new Error(`Schaltpunkt ${index + 1} hat eine ungueltige Uhrzeit.`)
+    throw new Error(`Schaltpunkt ${index + 1} hat eine ungültige Uhrzeit.`)
   }
 
   return {
