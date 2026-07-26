@@ -456,10 +456,13 @@ function App() {
                   <input type="password" value={adminToken} onChange={(event) => updateAdminToken(event.target.value)} placeholder="optional" />
                 </div>
               </label>
+              <p className={adminToken.trim() ? 'admin-status active' : 'admin-status'}>
+                {adminToken.trim() ? 'Admin-Modus aktiv. Löschbuttons sind eingeblendet.' : 'Ohne Admin-Code sind Profile nur lesbar.'}
+              </p>
             </div>
             <div className="community-list" aria-label="Community-Profile">
               {filteredCommunityProfiles.map((item) => (
-                <article className="community-card" key={item.id}>
+                <article className={adminToken.trim() ? 'community-card admin-enabled' : 'community-card'} key={item.id}>
                   <button type="button" className="community-load" onClick={() => loadCommunityProfile(item.id)}>
                     <strong>{item.name}</strong>
                     <span>{item.modelLabel}</span>
@@ -475,11 +478,12 @@ function App() {
                   {adminToken.trim() && (
                     <button
                       type="button"
-                      className="icon-button community-delete"
+                      className="community-delete"
                       onClick={() => deleteCommunityProfile(item.id, item.name)}
                       aria-label={`${item.name} löschen`}
                     >
                       <Trash2 size={16} aria-hidden="true" />
+                      Löschen
                     </button>
                   )}
                 </article>

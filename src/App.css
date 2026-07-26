@@ -377,6 +377,22 @@ button.ghost:hover {
   margin-bottom: 0;
 }
 
+.admin-status {
+  margin: -2px 0 0;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 226, 229, 0.16);
+  border-radius: 8px;
+  background: rgba(3, 8, 14, 0.36);
+  font-size: 12px;
+}
+
+.admin-status.active {
+  color: #ffd0d8;
+  border-color: rgba(255, 85, 115, 0.36);
+  background: rgba(255, 85, 115, 0.1);
+}
+
 .input-with-icon {
   position: relative;
 }
@@ -409,6 +425,10 @@ button.ghost:hover {
 .community-card:hover {
   background: rgba(80, 252, 218, 0.1);
   border-color: rgba(80, 252, 218, 0.5);
+}
+
+.community-card.admin-enabled {
+  padding-bottom: 52px;
 }
 
 .community-load {
@@ -462,7 +482,19 @@ button.ghost:hover {
 .community-delete {
   position: absolute;
   right: 8px;
-  top: 8px;
+  bottom: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  color: #ffd0d8;
+  background: rgba(255, 85, 115, 0.12);
+  border-color: rgba(255, 85, 115, 0.42);
+  box-shadow: none;
+}
+
+.community-delete:hover {
+  color: #fff;
+  background: rgba(255, 85, 115, 0.68);
+  border-color: rgba(255, 85, 115, 0.78);
 }
 
 .empty-state {
