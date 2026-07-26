@@ -74,11 +74,19 @@ export const onRequestDelete: PagesFunction<Env> = async ({ env, params, request
     return error('Admin-Code ist ungültig.', 401)
   }
 
-  const result = await env.DB.prepare('DELETE FROM community_profiles WHERE id = ?').bind(id).run()
+  const row = await env.DB.prepare(
+    `SELECT id, name, description, model_label, prefix, profile_id, point_count, start_time, end_time, checksum, tags, created_at
+     FROM community_profiles
+     WHERE id = ?`,
+  )
+    .bind(id)
+    .first<ProfileDetailRow>()
 
-  if (!result.meta.changes) {
+  if (!row) {
     return error('Profil nicht gefunden.', 404)
   }
+
+  await env.DB.prepare('DELETE FROM community_profiles WHERE id = ?').bind(id).run()
 
   return json({ deleted: true })
 }

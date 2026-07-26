@@ -239,13 +239,22 @@ async function deleteProfile(env: Env, request: Request, id: string) {
     return auth
   }
 
-  const result = await db.prepare('DELETE FROM community_profiles WHERE id = ?').bind(id).run()
+  const existing = await db
+    .prepare(
+      `SELECT id, name, description, model_label, prefix, profile_id, point_count, start_time, end_time, checksum, tags, created_at
+       FROM community_profiles
+       WHERE id = ?`,
+    )
+    .bind(id)
+    .first<CommunityProfileRow>()
 
-  if (!result.meta.changes) {
+  if (!existing) {
     return error('Profil nicht gefunden.', 404)
   }
 
-  return json({ deleted: true })
+  await db.prepare('DELETE FROM community_profiles WHERE id = ?').bind(id).run()
+
+  return json({ deleted: true, profile: rowToProfile(existing) })
 }
 
 function requireDb(env: Env) {

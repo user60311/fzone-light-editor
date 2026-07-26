@@ -337,6 +337,7 @@ function App() {
         throw new Error(data.error ?? 'Das Profil konnte nicht gelöscht werden.')
       }
 
+      setCommunityProfiles((items) => items.filter((item) => item.id !== id))
       setCommunityMessage(`Profil gelöscht: ${name}`)
       await loadCommunityProfiles()
     } catch (exception) {
