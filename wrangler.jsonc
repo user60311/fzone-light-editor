@@ -8,5 +8,12 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fzone-light-editor",
+      "database_id": "77cae90e-6d82-4b11-8491-67500fa9b784"
+    }
+  ]
 }
