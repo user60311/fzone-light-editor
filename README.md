@@ -44,9 +44,8 @@ Die statische App läuft weiterhin auf GitHub Pages. Gemeinsames Speichern aller
 2. Build command: `npm run build`
 3. Build output directory: `dist`
 4. D1-Datenbank anlegen: `npx wrangler d1 create fzone-light-editor`
-5. Die ausgegebene `database_id` in `wrangler.jsonc` eintragen.
+5. In Cloudflare Pages unter Settings > Bindings die D1-Bindung `DB` auf diese Datenbank setzen.
 6. Migration anwenden: `npm run d1:migrate:remote`
-7. In Cloudflare Pages die D1-Bindung `DB` auf diese Datenbank setzen, falls sie nicht automatisch aus `wrangler.jsonc` übernommen wird.
 
 Lokaler Cloudflare-Test:
 
