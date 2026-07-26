@@ -9,7 +9,7 @@ describe('FZone profile parser', () => {
     expect(profiles.map((profile) => profile.modelLabel)).toEqual([
       'FZONE Solo 55',
       'FZONE Brite 55',
-      'FZONE Bright Light 120',
+      'FZONE Brite Light 120',
     ])
     expect(profiles.every((profile) => profile.lengthValid)).toBe(true)
     expect(profiles.every((profile) => profile.checksumValid)).toBe(true)
@@ -35,7 +35,7 @@ describe('FZone profile parser', () => {
     const encoded = encodeFzoneProfile(original)
     const reparsed = parseFzonePayload(encoded)
 
-    expect(reparsed.modelLabel).toBe('FZONE Bright Light 120')
+    expect(reparsed.modelLabel).toBe('FZONE Brite Light 120')
     expect(reparsed.points).toHaveLength(19)
     expect(reparsed.lengthValid).toBe(true)
     expect(reparsed.checksumValid).toBe(true)

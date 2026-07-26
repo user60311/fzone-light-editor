@@ -1,4 +1,4 @@
-# FZone Bright Light QR Editor
+# FZone Brite Light QR Editor
 
 Browser-App zum Lesen, Bearbeiten, Veröffentlichen und Erzeugen von FZone Lichtprogramm-QR-Codes.
 
@@ -19,7 +19,7 @@ Browser-App zum Lesen, Bearbeiten, Veröffentlichen und Erzeugen von FZone Licht
 
 - `fzone_solo55` mit Header `04 10`: FZONE Solo 55
 - `smartaqua_brite55` mit Header `04 12`: FZONE Brite 55
-- `smartaqua_brite55` mit Header `04 11`: FZONE Bright Light 120, anhand einer echten Nutzerlampe beobachtet
+- `smartaqua_brite55` mit Header `04 11`: FZONE Brite Light 120, anhand einer echten Nutzerlampe beobachtet
 
 ## Entwicklung
 

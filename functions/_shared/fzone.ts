@@ -87,7 +87,7 @@ function modelLabelForProfile(prefix: string, profileId: number) {
   const normalized = prefix.toLowerCase()
 
   if (normalized === 'smartaqua_brite55' && profileId === 0x11) {
-    return 'FZONE Bright Light 120'
+    return 'FZONE Brite Light 120'
   }
 
   if (normalized === 'smartaqua_brite55' && profileId === 0x12) {

@@ -289,7 +289,7 @@ function App() {
     <main className="app-shell">
       <section className="app-hero">
         <div>
-          <p className="eyebrow">FZone Bright Light Lab</p>
+          <p className="eyebrow">FZone Brite Light Lab</p>
           <h1>QR-Profile lesen, verstehen und neu erzeugen.</h1>
           <p className="hero-copy">
             Präzise Tageskurven für FZone Lichtprofile: importieren, feinjustieren und als scanbaren QR-Code ausgeben.
