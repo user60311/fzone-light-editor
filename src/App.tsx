@@ -4,6 +4,7 @@ import {
   Copy,
   Database,
   Download,
+  FileJson,
   FileImage,
   Globe2,
   KeyRound,
@@ -17,7 +18,7 @@ import {
 import jsQR from 'jsqr'
 import QRCode from 'qrcode'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, PointerEvent } from 'react'
 import './App.css'
 import {
   MAX_POINTS,
@@ -26,6 +27,8 @@ import {
   clampByte,
   encodeFzoneProfile,
   parseFzonePayload,
+  parseFzoneJsonProfile,
+  profileToJson,
 } from './fzone'
 import type { ChannelKey, FzonePoint, FzoneProfile } from './fzone'
 
@@ -77,6 +80,8 @@ function App() {
   const [communityQuery, setCommunityQuery] = useState('')
   const [communityModel, setCommunityModel] = useState('Alle Modelle')
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('fzone-admin-token') ?? '')
+  const [jsonDataUrl, setJsonDataUrl] = useState('')
+  const [chartViewMode, setChartViewMode] = useState<'day' | 'points'>('day')
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const encodedPayload = useMemo(() => {
@@ -86,6 +91,16 @@ function App() {
       return ''
     }
   }, [profile])
+
+  const jsonExport = useMemo(() => JSON.stringify(profileToJson(profile), null, 2), [profile])
+  const jsonFileName = useMemo(() => `${slugify(profile.modelLabel)}.json`, [profile.modelLabel])
+
+  useEffect(() => {
+    const url = URL.createObjectURL(new Blob([jsonExport], { type: 'application/json' }))
+    setJsonDataUrl(url)
+
+    return () => URL.revokeObjectURL(url)
+  }, [jsonExport])
 
   useEffect(() => {
     if (!encodedPayload || !qrCanvasRef.current) {
@@ -215,6 +230,27 @@ function App() {
     }))
   }
 
+  function updatePointFields(id: string, updates: Partial<Pick<FzonePoint, 'hour' | 'minute' | ChannelKey>>) {
+    setProfile((current) => ({
+      ...current,
+      points: current.points.map((point) => {
+        if (point.id !== id) {
+          return point
+        }
+
+        return {
+          ...point,
+          hour: updates.hour === undefined ? point.hour : clamp(updates.hour, 0, 23),
+          minute: updates.minute === undefined ? point.minute : clamp(updates.minute, 0, 59),
+          white: updates.white === undefined ? point.white : clampByte(updates.white),
+          red: updates.red === undefined ? point.red : clampByte(updates.red),
+          green: updates.green === undefined ? point.green : clampByte(updates.green),
+          blue: updates.blue === undefined ? point.blue : clampByte(updates.blue),
+        }
+      }),
+    }))
+  }
+
   function addPoint() {
     setProfile((current) => ({
       ...current,
@@ -239,6 +275,33 @@ function App() {
   async function copyPayload() {
     await navigator.clipboard.writeText(encodedPayload)
     setNotice('Payload in die Zwischenablage kopiert.')
+  }
+
+  async function importJsonFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const json = JSON.parse(await file.text()) as unknown
+      const nextProfile = parseFzoneJsonProfile(json)
+      const nextPayload = encodeFzoneProfile(nextProfile)
+
+      setProfile(nextProfile)
+      setRawInput(nextPayload)
+      setPublishName(suggestProfileName(nextProfile))
+      setPublishDescription('')
+      setPublishTags('')
+      setError('')
+      setNotice(`${file.name} importiert.`)
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : 'Die JSON-Datei konnte nicht gelesen werden.')
+      setNotice('')
+    } finally {
+      event.target.value = ''
+    }
   }
 
   async function loadCommunityProfiles() {
@@ -373,10 +436,10 @@ function App() {
     <main className="app-shell">
       <section className="app-hero">
         <div>
-          <p className="eyebrow">FZone Brite Light Lab</p>
-          <h1>QR-Profile lesen, verstehen und neu erzeugen.</h1>
+          <p className="eyebrow">FZone Light Lab</p>
+          <h1>Lichtprofile einfach bauen.</h1>
           <p className="hero-copy">
-            Präzise Tageskurven für FZone Lichtprofile: importieren, feinjustieren und als scanbaren QR-Code ausgeben.
+            Importieren, anpassen, speichern und wieder als QR-Code ausgeben.
           </p>
         </div>
         <div className="hero-status" aria-label="Profilstatus">
@@ -393,13 +456,19 @@ function App() {
         <aside className="panel import-panel">
           <div className="panel-heading">
             <ScanLine size={20} aria-hidden="true" />
-            <h2>Import</h2>
+            <h2>Import/Export</h2>
           </div>
 
           <label className="file-drop">
             <FileImage size={22} aria-hidden="true" />
             <span>QR-Bild hochladen</span>
             <input type="file" accept="image/*" onChange={decodeImage} />
+          </label>
+
+          <label className="file-drop">
+            <FileJson size={22} aria-hidden="true" />
+            <span>JSON-Datei importieren</span>
+            <input type="file" accept="application/json,.json" onChange={importJsonFile} />
           </label>
 
           <label className="field">
@@ -426,75 +495,6 @@ function App() {
             ))}
           </div>
 
-          <div className="community-block">
-            <div className="panel-heading mini">
-              <Database size={18} aria-hidden="true" />
-              <h3>Community-Profile</h3>
-            </div>
-            <p className={communityAvailable ? 'community-status online' : 'community-status'}>
-              {communityMessage}
-            </p>
-            <div className="community-tools">
-              <label className="field">
-                <span>Suchen</span>
-                <div className="input-with-icon">
-                  <Search size={15} aria-hidden="true" />
-                  <input value={communityQuery} onChange={(event) => setCommunityQuery(event.target.value)} placeholder="Name, Tag, Modell" />
-                </div>
-              </label>
-              <label className="field">
-                <span>Modell</span>
-                <select value={communityModel} onChange={(event) => setCommunityModel(event.target.value)}>
-                  {modelOptions.map((model) => (
-                    <option key={model}>{model}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Admin-Code</span>
-                <div className="input-with-icon">
-                  <KeyRound size={15} aria-hidden="true" />
-                  <input type="password" value={adminToken} onChange={(event) => updateAdminToken(event.target.value)} placeholder="optional" />
-                </div>
-              </label>
-              <p className={adminToken.trim() ? 'admin-status active' : 'admin-status'}>
-                {adminToken.trim() ? 'Admin-Modus aktiv. Löschbuttons sind eingeblendet.' : 'Ohne Admin-Code sind Profile nur lesbar.'}
-              </p>
-            </div>
-            <div className="community-list" aria-label="Community-Profile">
-              {filteredCommunityProfiles.map((item) => (
-                <article className={adminToken.trim() ? 'community-card admin-enabled' : 'community-card'} key={item.id}>
-                  <button type="button" className="community-load" onClick={() => loadCommunityProfile(item.id)}>
-                    <strong>{item.name}</strong>
-                    <span>{item.modelLabel}</span>
-                    <small>
-                      {item.pointCount} Punkte / {item.startTime}-{item.endTime}
-                    </small>
-                    <small>
-                      Prefix {item.prefix} / Header 04 {item.profileId.toString(16).padStart(2, '0').toUpperCase()}
-                    </small>
-                    {item.description && <small>{item.description}</small>}
-                    <CommunityMeta item={item} />
-                  </button>
-                  {adminToken.trim() && (
-                    <div className="community-actions">
-                      <button
-                        type="button"
-                        className="community-delete"
-                        onClick={() => deleteCommunityProfile(item.id, item.name)}
-                        aria-label={`${item.name} löschen`}
-                      >
-                        <Trash2 size={16} aria-hidden="true" />
-                        Löschen
-                      </button>
-                    </div>
-                  )}
-                </article>
-              ))}
-              {!filteredCommunityProfiles.length && <p className="empty-state">Keine passenden Profile gefunden.</p>}
-            </div>
-          </div>
-
           {(error || notice) && (
             <div className={error ? 'message error' : 'message'}>
               {error ? <AlertTriangle size={18} aria-hidden="true" /> : <Check size={18} aria-hidden="true" />}
@@ -506,6 +506,7 @@ function App() {
         <section className="panel editor-panel">
           <div className="panel-heading split">
             <div>
+              <p className="section-kicker">Kurvenerstellung</p>
               <h2>{profile.modelLabel}</h2>
               <p>
                 Prefix <code>{profile.prefix}</code> / Header <code>04 {profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code>
@@ -549,7 +550,12 @@ function App() {
             </div>
           )}
 
-          <ProfileChart points={profile.points} />
+          <ProfileChart
+            points={profile.points}
+            viewMode={chartViewMode}
+            onToggleViewMode={() => setChartViewMode((mode) => (mode === 'day' ? 'points' : 'day'))}
+            onChangePoint={updatePointFields}
+          />
 
           <div className="table-wrap">
             <table>
@@ -630,6 +636,10 @@ function App() {
               <Download size={17} aria-hidden="true" />
               PNG
             </a>
+            <a className="button" href={jsonDataUrl} download={jsonFileName}>
+              <FileJson size={17} aria-hidden="true" />
+              JSON
+            </a>
           </div>
 
           <div className="publish-box">
@@ -676,6 +686,75 @@ function App() {
             <textarea className="payload-output" value={encodedPayload} readOnly spellCheck={false} />
           </label>
         </aside>
+
+        <aside className="panel storage-panel">
+          <div className="panel-heading">
+            <Database size={20} aria-hidden="true" />
+            <h2>Profil-Speicher/Suche</h2>
+          </div>
+          <p className={communityAvailable ? 'community-status online' : 'community-status'}>
+            {communityMessage}
+          </p>
+          <div className="community-tools">
+            <label className="field">
+              <span>Suchen</span>
+              <div className="input-with-icon">
+                <Search size={15} aria-hidden="true" />
+                <input value={communityQuery} onChange={(event) => setCommunityQuery(event.target.value)} placeholder="Name, Tag, Modell" />
+              </div>
+            </label>
+            <label className="field">
+              <span>Modell</span>
+              <select value={communityModel} onChange={(event) => setCommunityModel(event.target.value)}>
+                {modelOptions.map((model) => (
+                  <option key={model}>{model}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Admin-Code</span>
+              <div className="input-with-icon">
+                <KeyRound size={15} aria-hidden="true" />
+                <input type="password" value={adminToken} onChange={(event) => updateAdminToken(event.target.value)} placeholder="optional" />
+              </div>
+            </label>
+            <p className={adminToken.trim() ? 'admin-status active' : 'admin-status'}>
+              {adminToken.trim() ? 'Admin-Modus aktiv. Löschbuttons sind eingeblendet.' : 'Ohne Admin-Code sind Profile nur lesbar.'}
+            </p>
+          </div>
+          <div className="community-list" aria-label="Community-Profile">
+            {filteredCommunityProfiles.map((item) => (
+              <article className={adminToken.trim() ? 'community-card admin-enabled' : 'community-card'} key={item.id}>
+                <button type="button" className="community-load" onClick={() => loadCommunityProfile(item.id)}>
+                  <strong>{item.name}</strong>
+                  <span>{item.modelLabel}</span>
+                  <small>
+                    {item.pointCount} Punkte / {item.startTime}-{item.endTime}
+                  </small>
+                  <small>
+                    Prefix {item.prefix} / Header 04 {item.profileId.toString(16).padStart(2, '0').toUpperCase()}
+                  </small>
+                  {item.description && <small>{item.description}</small>}
+                  <CommunityMeta item={item} />
+                </button>
+                {adminToken.trim() && (
+                  <div className="community-actions">
+                    <button
+                      type="button"
+                      className="community-delete"
+                      onClick={() => deleteCommunityProfile(item.id, item.name)}
+                      aria-label={`${item.name} löschen`}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                      Löschen
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))}
+            {!filteredCommunityProfiles.length && <p className="empty-state">Keine passenden Profile gefunden.</p>}
+          </div>
+        </aside>
       </section>
       <footer className="app-footer">
         Inoffizielles Community-Tool. Nicht verbunden mit FZone; QR-Profile werden nur freiwillig veröffentlicht.
@@ -712,6 +791,13 @@ function formatPointTime(point: FzonePoint) {
   return `${point.hour.toString().padStart(2, '0')}:${point.minute.toString().padStart(2, '0')}`
 }
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'fzone-light-profile'
+}
+
 function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image()
@@ -730,37 +816,168 @@ function StatusPill({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
-function ProfileChart({ points }: { points: FzonePoint[] }) {
+function ProfileChart({
+  points,
+  viewMode,
+  onToggleViewMode,
+  onChangePoint,
+}: {
+  points: FzonePoint[]
+  viewMode: 'day' | 'points'
+  onToggleViewMode: () => void
+  onChangePoint: (id: string, updates: Partial<Pick<FzonePoint, 'hour' | 'minute' | ChannelKey>>) => void
+}) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [dragTarget, setDragTarget] = useState<{ pointId: string; channel: ChannelKey } | null>(null)
   const sorted = [...points].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute))
-  const x = (point: FzonePoint) => ((point.hour * 60 + point.minute) / 1440) * 100
-  const y = (value: number) => 92 - (clampByte(value) / 255) * 84
+  const firstMinute = sorted[0] ? sorted[0].hour * 60 + sorted[0].minute : 0
+  const lastMinute = sorted.at(-1) ? sorted.at(-1)!.hour * 60 + sorted.at(-1)!.minute : 1440
+  const domainStart = viewMode === 'points' ? firstMinute : 0
+  const domainEnd = viewMode === 'points' ? Math.max(firstMinute + 1, lastMinute) : 1440
+  const chartSize = { width: 1200, height: 420 }
+  const plot = { left: 72, right: 1172, top: 26, bottom: 342 }
+  const plotWidth = plot.right - plot.left
+  const plotHeight = plot.bottom - plot.top
+  const x = (point: FzonePoint) => plot.left + (((point.hour * 60 + point.minute) - domainStart) / (domainEnd - domainStart)) * plotWidth
+  const y = (value: number) => plot.bottom - (clampByte(value) / 255) * plotHeight
+  const xTicks = buildHourTicks(domainStart, domainEnd)
+  const yTicks = [0, 25, 50, 75, 100]
+
+  function updateFromPointer(event: PointerEvent<SVGElement>, target: { pointId: string; channel: ChannelKey }) {
+    const box = svgRef.current?.getBoundingClientRect()
+
+    if (!box) {
+      return
+    }
+
+    const pointerX = ((event.clientX - box.left) / box.width) * chartSize.width
+    const pointerY = ((event.clientY - box.top) / box.height) * chartSize.height
+    const minuteOfDay = clamp(
+      ((pointerX - plot.left) / plotWidth) * (domainEnd - domainStart) + domainStart,
+      0,
+      1439,
+    )
+    const value = clampByte(((plot.bottom - pointerY) / plotHeight) * 255)
+
+    onChangePoint(target.pointId, {
+      hour: Math.floor(minuteOfDay / 60),
+      minute: minuteOfDay % 60,
+      [target.channel]: value,
+    })
+  }
+
+  function startDrag(event: PointerEvent<SVGCircleElement>, pointId: string, channel: ChannelKey) {
+    const target = { pointId, channel }
+
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDragTarget(target)
+    updateFromPointer(event, target)
+  }
+
+  function moveDrag(event: PointerEvent<SVGSVGElement>) {
+    if (!dragTarget) {
+      return
+    }
+
+    updateFromPointer(event, dragTarget)
+  }
 
   return (
-    <div className="chart" aria-label="WRGB Tagesverlauf">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img">
-        <title>WRGB Tagesverlauf</title>
-        {[0, 6, 12, 18, 24].map((hour) => (
-          <line key={hour} x1={(hour / 24) * 100} x2={(hour / 24) * 100} y1="8" y2="92" className="grid-line" />
-        ))}
-        {channelMeta.map((channel) => (
-          <polyline
-            key={channel.key}
-            points={sorted.map((point) => `${x(point)},${y(point[channel.key])}`).join(' ')}
-            className={`chart-line ${channel.key}`}
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-      </svg>
-      <div className="chart-legend">
-        {channelMeta.map((channel) => (
-          <span key={channel.key}>
-            <i style={{ background: channel.color }} />
-            {channel.label}
-          </span>
-        ))}
+    <div className="chart-panel" aria-label="WRGB Tagesverlauf">
+      <div className="chart-toolbar">
+        <div>
+          <strong>Lichtkurve</strong>
+          <span>Punkte ziehen, um Zeit und Intensität zu ändern.</span>
+        </div>
+        <button type="button" className="ghost" onClick={onToggleViewMode}>
+          {viewMode === 'day' ? 'Auf Schaltpunkte zoomen' : '24 Stunden anzeigen'}
+        </button>
+      </div>
+      <div className="chart">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${chartSize.width} ${chartSize.height}`}
+          role="img"
+          onPointerMove={moveDrag}
+          onPointerUp={() => setDragTarget(null)}
+          onPointerLeave={() => setDragTarget(null)}
+        >
+          <title>WRGB Tagesverlauf</title>
+          <line x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom} className="axis-line" />
+          <line x1={plot.left} x2={plot.right} y1={plot.bottom} y2={plot.bottom} className="axis-line" />
+          {xTicks.map((minute) => (
+            <g key={minute}>
+              <line x1={minuteToChartX(minute, domainStart, domainEnd, plot.left, plotWidth)} x2={minuteToChartX(minute, domainStart, domainEnd, plot.left, plotWidth)} y1={plot.top} y2={plot.bottom} className="grid-line" />
+              <text x={minuteToChartX(minute, domainStart, domainEnd, plot.left, plotWidth)} y="375" className="axis-label">
+                {formatAxisTime(minute)}
+              </text>
+            </g>
+          ))}
+          {yTicks.map((percent) => {
+            const tickY = plot.bottom - (percent / 100) * plotHeight
+
+            return (
+              <g key={percent}>
+                <line x1={plot.left} x2={plot.right} y1={tickY} y2={tickY} className="grid-line horizontal" />
+                <text x="18" y={tickY + 5} className="axis-label percent">
+                  {percent}%
+                </text>
+              </g>
+            )
+          })}
+          {channelMeta.map((channel) => (
+            <g key={channel.key}>
+              <polyline
+                points={sorted.map((point) => `${x(point)},${y(point[channel.key])}`).join(' ')}
+                className={`chart-line ${channel.key}`}
+                vectorEffect="non-scaling-stroke"
+              />
+              {sorted.map((point) => (
+                <circle
+                  key={`${point.id}-${channel.key}`}
+                  cx={x(point)}
+                  cy={y(point[channel.key])}
+                  r="6"
+                  className={`chart-handle ${channel.key}`}
+                  vectorEffect="non-scaling-stroke"
+                  onPointerDown={(event) => startDrag(event, point.id, channel.key)}
+                />
+              ))}
+            </g>
+          ))}
+        </svg>
+        <div className="chart-legend">
+          {channelMeta.map((channel) => (
+            <span key={channel.key}>
+              <i style={{ background: channel.color }} />
+              {channel.label}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )
+}
+
+function buildHourTicks(domainStart: number, domainEnd: number) {
+  const span = domainEnd - domainStart
+  const step = span <= 180 ? 30 : span <= 480 ? 60 : span <= 900 ? 180 : 360
+  const first = Math.ceil(domainStart / step) * step
+  const ticks = [domainStart, ...Array.from({ length: Math.floor((domainEnd - first) / step) + 1 }, (_, index) => first + index * step), domainEnd]
+
+  return Array.from(new Set(ticks.filter((minute) => minute >= domainStart && minute <= domainEnd)))
+}
+
+function minuteToChartX(minute: number, domainStart: number, domainEnd: number, left: number, width: number) {
+  return left + ((minute - domainStart) / (domainEnd - domainStart)) * width
+}
+
+function formatAxisTime(minute: number) {
+  if (minute >= 1440) {
+    return '24:00'
+  }
+
+  return `${Math.floor(minute / 60).toString().padStart(2, '0')}:${(minute % 60).toString().padStart(2, '0')}`
 }
 
 export default App

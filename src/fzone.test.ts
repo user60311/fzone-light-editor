@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SAMPLE_PAYLOADS, encodeFzoneProfile, parseFzonePayload } from './fzone'
+import { SAMPLE_PAYLOADS, encodeFzoneProfile, parseFzoneJsonProfile, parseFzonePayload, profileToJson } from './fzone'
 
 describe('FZone profile parser', () => {
   it('parses all known sample payloads with valid length and checksum', () => {
@@ -40,5 +40,16 @@ describe('FZone profile parser', () => {
     expect(reparsed.lengthValid).toBe(true)
     expect(reparsed.checksumValid).toBe(true)
     expect(reparsed.checksumActual).toBe(0x01)
+  })
+
+  it('exports and imports an editable JSON profile', () => {
+    const original = parseFzonePayload(SAMPLE_PAYLOADS[2].value)
+    const json = profileToJson(original)
+    const imported = parseFzoneJsonProfile(json)
+
+    expect(json.format).toBe('fzone-light-lab-profile')
+    expect(json.profileIdHex).toBe('11')
+    expect(imported.modelLabel).toBe('FZONE Brite Light 120')
+    expect(encodeFzoneProfile(imported)).toBe(encodeFzoneProfile(original))
   })
 })

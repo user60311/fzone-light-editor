@@ -24,6 +24,24 @@ export type FzoneProfile = {
   points: FzonePoint[]
 }
 
+export type FzoneProfileJson = {
+  format: 'fzone-light-lab-profile'
+  version: 1
+  modelLabel: string
+  prefix: string
+  profileId: number
+  profileIdHex: string
+  points: Array<{
+    time: string
+    hour: number
+    minute: number
+    white: number
+    red: number
+    green: number
+    blue: number
+  }>
+}
+
 export const MAX_POINTS = 24
 export const RECORD_SIZE = 10
 
@@ -165,6 +183,54 @@ export function encodeFzoneProfile(profile: Pick<FzoneProfile, 'prefix' | 'profi
   return `${profile.prefix}${bytesToHex([...body, checksum])}`
 }
 
+export function profileToJson(profile: Pick<FzoneProfile, 'prefix' | 'profileId' | 'modelLabel'> & { points: FzonePoint[] }): FzoneProfileJson {
+  const sortedPoints = [...profile.points].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute))
+
+  return {
+    format: 'fzone-light-lab-profile',
+    version: 1,
+    modelLabel: profile.modelLabel,
+    prefix: profile.prefix,
+    profileId: clampByte(profile.profileId),
+    profileIdHex: clampByte(profile.profileId).toString(16).padStart(2, '0').toUpperCase(),
+    points: sortedPoints.map((point) => ({
+      time: `${clamp(point.hour, 0, 23).toString().padStart(2, '0')}:${clamp(point.minute, 0, 59).toString().padStart(2, '0')}`,
+      hour: clamp(point.hour, 0, 23),
+      minute: clamp(point.minute, 0, 59),
+      white: clampByte(point.white),
+      red: clampByte(point.red),
+      green: clampByte(point.green),
+      blue: clampByte(point.blue),
+    })),
+  }
+}
+
+export function parseFzoneJsonProfile(value: unknown) {
+  if (!isRecord(value)) {
+    throw new Error('Die JSON-Datei enthaelt kein Profilobjekt.')
+  }
+
+  if (typeof value.payload === 'string') {
+    return parseFzonePayload(value.payload)
+  }
+
+  const prefix = readString(value, 'prefix')
+  const profileId = readProfileId(value)
+  const pointsValue = value.points
+
+  if (!Array.isArray(pointsValue)) {
+    throw new Error('Die JSON-Datei braucht ein points-Array.')
+  }
+
+  const profile = {
+    prefix,
+    profileId,
+    points: pointsValue.map(readJsonPoint),
+  }
+
+  return parseFzonePayload(encodeFzoneProfile(profile))
+}
+
 export function checksumFor(bytes: number[]) {
   return (bytes.reduce((sum, byte) => sum + byte, 0) + 0x55) & 0xff
 }
@@ -208,6 +274,76 @@ function pointToRecord(point: FzonePoint) {
     0,
     0,
   ]
+}
+
+function readJsonPoint(value: unknown, index: number): FzonePoint {
+  if (!isRecord(value)) {
+    throw new Error(`Schaltpunkt ${index + 1} ist kein Objekt.`)
+  }
+
+  const time = typeof value.time === 'string' ? value.time.match(/^(\d{1,2}):(\d{1,2})$/) : null
+  const hour = time ? Number.parseInt(time[1], 10) : readNumber(value, 'hour', index)
+  const minute = time ? Number.parseInt(time[2], 10) : readNumber(value, 'minute', index)
+
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    throw new Error(`Schaltpunkt ${index + 1} hat eine ungueltige Zeit.`)
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    hour,
+    minute,
+    white: readChannel(value, 'white', index),
+    red: readChannel(value, 'red', index),
+    green: readChannel(value, 'green', index),
+    blue: readChannel(value, 'blue', index),
+  }
+}
+
+function readProfileId(value: Record<string, unknown>) {
+  if (typeof value.profileId === 'number' && Number.isFinite(value.profileId)) {
+    return clampByte(value.profileId)
+  }
+
+  if (typeof value.profileIdHex === 'string' && /^[\da-f]{1,2}$/i.test(value.profileIdHex)) {
+    return Number.parseInt(value.profileIdHex, 16)
+  }
+
+  throw new Error('Die JSON-Datei braucht profileId oder profileIdHex.')
+}
+
+function readString(value: Record<string, unknown>, key: string) {
+  const field = value[key]
+
+  if (typeof field !== 'string' || !field.trim()) {
+    throw new Error(`Die JSON-Datei braucht ${key}.`)
+  }
+
+  return field.trim()
+}
+
+function readNumber(value: Record<string, unknown>, key: string, index: number) {
+  const field = value[key]
+
+  if (typeof field !== 'number' || !Number.isFinite(field)) {
+    throw new Error(`Schaltpunkt ${index + 1} braucht ${key}.`)
+  }
+
+  return Math.round(field)
+}
+
+function readChannel(value: Record<string, unknown>, key: ChannelKey, index: number) {
+  const field = readNumber(value, key, index)
+
+  if (field < 0 || field > 255) {
+    throw new Error(`Schaltpunkt ${index + 1} hat einen ungueltigen ${key}-Wert.`)
+  }
+
+  return field
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function chunk<T>(items: T[], size: number) {

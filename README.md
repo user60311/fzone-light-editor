@@ -1,10 +1,11 @@
-# FZone Brite Light QR Editor
+# FZone Light Lab
 
 Browser-App zum Lesen, Bearbeiten, Veröffentlichen und Erzeugen von FZone Lichtprogramm-QR-Codes.
 
 ## MVP-Funktionen
 
 - QR-Code-Bilder hochladen und per jsQR dekodieren
+- Profile als bearbeitbare JSON-Datei importieren und exportieren
 - QR-Rohdaten direkt einfügen
 - Modell-Prefix und Header anzeigen
 - FZone-Schaltpunkte im bekannten 10-Byte-Format parsen
