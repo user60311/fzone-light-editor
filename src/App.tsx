@@ -61,7 +61,7 @@ const channelMeta: Array<{ key: ChannelKey; label: string; color: string }> = [
 const MAX_INTENSITY_PERCENT = 100
 const MAX_HISTORY_ITEMS = 60
 
-type UiLanguage = 'de' | 'en'
+type UiLanguage = 'de' | 'en' | 'zh'
 
 const UI_TEXT = {
   de: {
@@ -199,6 +199,74 @@ const UI_TEXT = {
     showFullDay: 'Show 24 hours',
     chartLabel: 'WRGB daily curve',
     checksumMeta: 'Checksum',
+  },
+  zh: {
+    heroTitle: '快速创建灯光配置。',
+    heroCopy: '导入、编辑、保存，并重新导出为二维码。',
+    viewLabel: '选择视图',
+    languageLabel: '选择语言',
+    checksum: '校验和',
+    length: '长度',
+    switchPoints: '切换点',
+    importExport: '导入/导出',
+    uploadQr: '上传二维码图片',
+    importJson: '导入 JSON 文件',
+    qrRawData: '二维码原始数据',
+    decode: '解码',
+    reset: '重置',
+    samples: '示例配置',
+    curveCreation: '曲线编辑',
+    profileIdHex: '配置 ID hex',
+    profileIdShort: '配置 ID',
+    unknownModel: '检测到未知型号',
+    unknownModelHelp: '尚未映射。',
+    unknownModelAction: '建议型号',
+    channelLocks: '锁定通道',
+    presetGenerator: '预设生成器',
+    presetHelp: '选择一条曲线，并设置开始和结束时间。',
+    preset: '预设',
+    start: '开始',
+    end: '结束',
+    generate: '生成',
+    actions: '操作',
+    hour: '小时',
+    minute: '分钟',
+    intensity: '强度',
+    duplicatePoint: '复制切换点',
+    deletePoint: '删除切换点',
+    copy: '复制',
+    generatedQr: '生成的 FZone 二维码',
+    publishProfile: '发布配置',
+    profileName: '配置名称',
+    description: '描述',
+    save: '保存中',
+    publish: '发布',
+    newLength: '新长度',
+    newChecksum: '新校验和',
+    generatedPayload: '生成的 Payload',
+    storageSearch: '配置存储/搜索',
+    search: '搜索',
+    model: '型号',
+    adminCode: '管理员代码',
+    optional: '可选',
+    adminActive: '管理员模式已启用。删除按钮已显示。',
+    readOnly: '没有管理员代码时，配置只能读取。',
+    communityProfiles: '社区配置',
+    allModels: '所有型号',
+    searchPlaceholder: '名称、标签、型号',
+    points: '点',
+    delete: '删除',
+    noProfiles: '未找到匹配的配置。',
+    footer: 'User60311 制作的非官方社区工具。与 FZone 无关联；二维码配置仅在自愿情况下发布。',
+    undo: '撤销',
+    redo: '重做',
+    point: '点',
+    lightCurve: '灯光曲线',
+    chartHelp: '颜色点调整强度。下方时间点移动切换时间。',
+    zoomPoints: '缩放到切换点',
+    showFullDay: '显示 24 小时',
+    chartLabel: 'WRGB 日曲线',
+    checksumMeta: '校验和',
   },
 } as const
 
@@ -613,16 +681,19 @@ const PRESET_GROUPS = [
   {
     labelDe: 'Alltag',
     labelEn: 'Everyday',
+    labelZh: '日常',
     presets: ['Sanfter Tag', 'Garnelen-Morgen', 'Low-Tech', 'Feierabend', 'Abendblau', 'Mondlicht Blau'],
   },
   {
     labelDe: 'Pflanzen & Aquascaping',
     labelEn: 'Plants & Aquascaping',
+    labelZh: '水草与造景',
     presets: ['Pflanzen-Peak', 'Dutch Style', 'Iwagumi Klar', 'Asien-Style', 'Wabi-Kusa', 'Showcase', 'Algenpause'],
   },
   {
     labelDe: 'Biotop & Regionen',
     labelEn: 'Biotope & Regions',
+    labelZh: '原生缸与地区',
     presets: [
       'Biotop Soft',
       'Amazonas',
@@ -638,6 +709,7 @@ const PRESET_GROUPS = [
   {
     labelDe: 'Spezial',
     labelEn: 'Special',
+    labelZh: '特殊',
     presets: ['Meerwasser', 'Tanganjika Fels', 'Malawi Klar'],
   },
 ] as const
@@ -1199,6 +1271,9 @@ function App() {
             <button type="button" className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>
               EN
             </button>
+            <button type="button" className={language === 'zh' ? 'active' : ''} onClick={() => setLanguage('zh')}>
+              中文
+            </button>
           </div>
           {interfaceMode === 'profi' && (
             <>
@@ -1370,7 +1445,7 @@ function App() {
                   onInput={(event) => setSelectedPresetName(event.currentTarget.value)}
                 >
                   {PRESET_GROUPS.map((group) => (
-                    <optgroup key={group.labelDe} label={language === 'de' ? group.labelDe : group.labelEn}>
+                    <optgroup key={group.labelDe} label={presetGroupLabel(group, language)}>
                       {group.presets.map((presetName) => (
                         <option key={presetName}>{presetName}</option>
                       ))}
@@ -1415,7 +1490,7 @@ function App() {
             <table>
               <thead>
                 <tr>
-                  <th>{language === 'de' ? 'Zeit' : 'Time'}</th>
+                  <th>{timeColumnLabel(language)}</th>
                   <th>W</th>
                   <th>R</th>
                   <th>G</th>
@@ -1636,7 +1711,7 @@ function App() {
 
 function CommunityMeta({ item, language }: { item: CommunityProfile; language: UiLanguage }) {
   const text = UI_TEXT[language]
-  const date = new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', {
+  const date = new Intl.DateTimeFormat(dateLocale(language), {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -1686,6 +1761,42 @@ function fitPresetToRange(preset: LightPreset, startMinute: number, endMinute: n
       minute: targetMinute % 60,
     }
   })
+}
+
+function presetGroupLabel(group: (typeof PRESET_GROUPS)[number], language: UiLanguage) {
+  if (language === 'de') {
+    return group.labelDe
+  }
+
+  if (language === 'zh') {
+    return group.labelZh
+  }
+
+  return group.labelEn
+}
+
+function timeColumnLabel(language: UiLanguage) {
+  if (language === 'de') {
+    return 'Zeit'
+  }
+
+  if (language === 'zh') {
+    return '时间'
+  }
+
+  return 'Time'
+}
+
+function dateLocale(language: UiLanguage) {
+  if (language === 'de') {
+    return 'de-DE'
+  }
+
+  if (language === 'zh') {
+    return 'zh-CN'
+  }
+
+  return 'en-US'
 }
 
 function slugify(value: string) {
@@ -1782,7 +1893,7 @@ function ProfileChart({
       setDragTooltip({
         x: clamp(pointerX + 16, 90, chartSize.width - 190),
         y: 360,
-        label: `${language === 'de' ? 'Zeit' : 'Time'} ${formatAxisTime(timeUpdates.hour * 60 + timeUpdates.minute)}`,
+        label: `${timeColumnLabel(language)} ${formatAxisTime(timeUpdates.hour * 60 + timeUpdates.minute)}`,
       })
       return
     }
