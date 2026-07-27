@@ -54,6 +54,8 @@ const channelMeta: Array<{ key: ChannelKey; label: string; color: string }> = [
   { key: 'blue', label: 'B', color: '#3b82f6' },
 ]
 
+const MAX_INTENSITY_PERCENT = 100
+
 const emptyPoint = (): FzonePoint => ({
   id: crypto.randomUUID(),
   hour: 12,
@@ -223,7 +225,11 @@ function App() {
         }
 
         const nextValue =
-          key === 'hour' ? clamp(value, 0, 23) : key === 'minute' ? clamp(value, 0, 59) : clampByte(value)
+          key === 'hour'
+            ? clamp(value, 0, 23)
+            : key === 'minute'
+              ? clamp(value, 0, 59)
+              : clamp(value, 0, MAX_INTENSITY_PERCENT)
 
         return { ...point, [key]: nextValue }
       }),
@@ -242,10 +248,10 @@ function App() {
           ...point,
           hour: updates.hour === undefined ? point.hour : clamp(updates.hour, 0, 23),
           minute: updates.minute === undefined ? point.minute : clamp(updates.minute, 0, 59),
-          white: updates.white === undefined ? point.white : clampByte(updates.white),
-          red: updates.red === undefined ? point.red : clampByte(updates.red),
-          green: updates.green === undefined ? point.green : clampByte(updates.green),
-          blue: updates.blue === undefined ? point.blue : clampByte(updates.blue),
+          white: updates.white === undefined ? point.white : clamp(updates.white, 0, MAX_INTENSITY_PERCENT),
+          red: updates.red === undefined ? point.red : clamp(updates.red, 0, MAX_INTENSITY_PERCENT),
+          green: updates.green === undefined ? point.green : clamp(updates.green, 0, MAX_INTENSITY_PERCENT),
+          blue: updates.blue === undefined ? point.blue : clamp(updates.blue, 0, MAX_INTENSITY_PERCENT),
         }
       }),
     }))
@@ -436,7 +442,7 @@ function App() {
     <main className="app-shell">
       <section className="app-hero">
         <div>
-          <p className="eyebrow">FZone Light Lab</p>
+          <p className="eyebrow">FZone Light Lab (by User60311)</p>
           <h1>Lichtprofile einfach bauen.</h1>
           <p className="hero-copy">
             Importieren, anpassen, speichern und wieder als QR-Code ausgeben.
@@ -599,7 +605,7 @@ function App() {
                             aria-label={`${channel.label} Intensität`}
                             type="number"
                             min={0}
-                            max={255}
+                            max={MAX_INTENSITY_PERCENT}
                             value={point[channel.key]}
                             onChange={(event) => updatePoint(point.id, channel.key, Number(event.target.value))}
                           />
@@ -757,7 +763,7 @@ function App() {
         </aside>
       </section>
       <footer className="app-footer">
-        Inoffizielles Community-Tool. Nicht verbunden mit FZone; QR-Profile werden nur freiwillig veröffentlicht.
+        Inoffizielles Community-Tool von User60311. Nicht verbunden mit FZone; QR-Profile werden nur freiwillig veröffentlicht.
       </footer>
     </main>
   )
@@ -832,14 +838,18 @@ function ProfileChart({
   const sorted = [...points].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute))
   const firstMinute = sorted[0] ? sorted[0].hour * 60 + sorted[0].minute : 0
   const lastMinute = sorted.at(-1) ? sorted.at(-1)!.hour * 60 + sorted.at(-1)!.minute : 1440
-  const domainStart = viewMode === 'points' ? firstMinute : 0
-  const domainEnd = viewMode === 'points' ? Math.max(firstMinute + 1, lastMinute) : 1440
+  const zoomPaddingMinutes = 60
+  const domainStart = viewMode === 'points' ? clamp(firstMinute - zoomPaddingMinutes, 0, 1440) : 0
+  const domainEnd =
+    viewMode === 'points'
+      ? Math.max(domainStart + 1, clamp(lastMinute + zoomPaddingMinutes, 0, 1440))
+      : 1440
   const chartSize = { width: 1200, height: 420 }
   const plot = { left: 72, right: 1172, top: 26, bottom: 342 }
   const plotWidth = plot.right - plot.left
   const plotHeight = plot.bottom - plot.top
   const x = (point: FzonePoint) => plot.left + (((point.hour * 60 + point.minute) - domainStart) / (domainEnd - domainStart)) * plotWidth
-  const y = (value: number) => plot.bottom - (clampByte(value) / 255) * plotHeight
+  const y = (value: number) => plot.bottom - (clamp(value, 0, MAX_INTENSITY_PERCENT) / MAX_INTENSITY_PERCENT) * plotHeight
   const xTicks = buildHourTicks(domainStart, domainEnd)
   const yTicks = [0, 25, 50, 75, 100]
 
@@ -857,7 +867,7 @@ function ProfileChart({
       0,
       1439,
     )
-    const value = clampByte(((plot.bottom - pointerY) / plotHeight) * 255)
+    const value = clamp(((plot.bottom - pointerY) / plotHeight) * MAX_INTENSITY_PERCENT, 0, MAX_INTENSITY_PERCENT)
 
     onChangePoint(target.pointId, {
       hour: Math.floor(minuteOfDay / 60),

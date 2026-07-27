@@ -1,4 +1,4 @@
-# FZone Light Lab
+# FZone Light Lab (by User60311)
 
 Browser-App zum Lesen, Bearbeiten, Veröffentlichen und Erzeugen von FZone Lichtprogramm-QR-Codes.
 

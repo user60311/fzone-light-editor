@@ -78,6 +78,10 @@ export function modelLabelForPrefix(prefix: string) {
     return 'FZONE Brite 55'
   }
 
+  if (normalized === 'user_light_60311' || normalized === 'aquarium_hg221') {
+    return 'User Light 60311'
+  }
+
   return prefix ? `Unbekanntes Modell (${prefix})` : 'Unbekanntes Modell'
 }
 
@@ -90,6 +94,10 @@ export function modelLabelForProfile(prefix: string, profileId: number) {
 
   if (normalized === 'smartaqua_brite55' && profileId === 0x12) {
     return 'FZONE Brite 55'
+  }
+
+  if ((normalized === 'user_light_60311' || normalized === 'aquarium_hg221') && profileId === 0x01) {
+    return 'User Light 60311'
   }
 
   return modelLabelForPrefix(prefix)

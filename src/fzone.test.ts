@@ -52,4 +52,16 @@ describe('FZone profile parser', () => {
     expect(imported.modelLabel).toBe('FZONE Brite Light 120')
     expect(encodeFzoneProfile(imported)).toBe(encodeFzoneProfile(original))
   })
+
+  it('recognizes User Light 60311 by new prefix and legacy alias', () => {
+    const baseProfile = {
+      profileId: 0x01,
+      points: parseFzonePayload(SAMPLE_PAYLOADS[1].value).points.slice(0, 2),
+    }
+    const renamed = parseFzonePayload(encodeFzoneProfile({ ...baseProfile, prefix: 'user_light_60311' }))
+    const legacy = parseFzonePayload(encodeFzoneProfile({ ...baseProfile, prefix: 'aquarium_hg221' }))
+
+    expect(renamed.modelLabel).toBe('User Light 60311')
+    expect(legacy.modelLabel).toBe('User Light 60311')
+  })
 })
