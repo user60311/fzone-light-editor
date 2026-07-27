@@ -8,12 +8,16 @@ import {
   FileImage,
   Globe2,
   KeyRound,
+  Lock,
   Plus,
   QrCode,
+  Redo2,
   RotateCcw,
   ScanLine,
   Search,
   Trash2,
+  Undo2,
+  Unlock,
 } from 'lucide-react'
 import jsQR from 'jsqr'
 import QRCode from 'qrcode'
@@ -55,6 +59,588 @@ const channelMeta: Array<{ key: ChannelKey; label: string; color: string }> = [
 ]
 
 const MAX_INTENSITY_PERCENT = 100
+const MAX_HISTORY_ITEMS = 60
+
+type UiLanguage = 'de' | 'en'
+
+const UI_TEXT = {
+  de: {
+    heroTitle: 'Lichtprofile einfach bauen.',
+    heroCopy: 'Importieren, anpassen, speichern und wieder als QR-Code ausgeben.',
+    viewLabel: 'Ansicht wählen',
+    languageLabel: 'Sprache wählen',
+    checksum: 'Checksumme',
+    length: 'Länge',
+    switchPoints: 'Schaltpunkte',
+    importExport: 'Import/Export',
+    uploadQr: 'QR-Bild hochladen',
+    importJson: 'JSON-Datei importieren',
+    qrRawData: 'QR-Rohdaten',
+    decode: 'Dekodieren',
+    reset: 'Reset',
+    samples: 'Beispielprofile',
+    curveCreation: 'Kurvenerstellung',
+    profileIdHex: 'Profil-ID hex',
+    profileIdShort: 'Profil-ID',
+    unknownModel: 'Unbekanntes Modell erkannt',
+    unknownModelHelp: 'ist noch nicht zugeordnet.',
+    unknownModelAction: 'Modell vorschlagen',
+    channelLocks: 'Kanäle sperren',
+    presetGenerator: 'Preset-Generator',
+    presetHelp: 'Wähle eine Kurve und lege fest, wann sie beginnt und endet.',
+    preset: 'Preset',
+    start: 'Anfang',
+    end: 'Ende',
+    generate: 'Generieren',
+    actions: 'Aktionen',
+    hour: 'Stunde',
+    minute: 'Minute',
+    intensity: 'Intensität',
+    duplicatePoint: 'Schaltpunkt duplizieren',
+    deletePoint: 'Schaltpunkt löschen',
+    copy: 'Kopieren',
+    generatedQr: 'Generierter FZone QR-Code',
+    publishProfile: 'Profil veröffentlichen',
+    profileName: 'Profilname',
+    description: 'Beschreibung',
+    save: 'Speichern',
+    publish: 'Veröffentlichen',
+    newLength: 'Neue Länge',
+    newChecksum: 'Neue Checksumme',
+    generatedPayload: 'Generierter Payload',
+    storageSearch: 'Profil-Speicher/Suche',
+    search: 'Suchen',
+    model: 'Modell',
+    adminCode: 'Admin-Code',
+    optional: 'optional',
+    adminActive: 'Admin-Modus aktiv. Löschbuttons sind eingeblendet.',
+    readOnly: 'Ohne Admin-Code sind Profile nur lesbar.',
+    communityProfiles: 'Community-Profile',
+    allModels: 'Alle Modelle',
+    searchPlaceholder: 'Name, Tag, Modell',
+    points: 'Punkte',
+    delete: 'Löschen',
+    noProfiles: 'Keine passenden Profile gefunden.',
+    footer: 'Inoffizielles Community-Tool von User60311. Nicht verbunden mit FZone; QR-Profile werden nur freiwillig veröffentlicht.',
+    undo: 'Rückgängig',
+    redo: 'Wiederholen',
+    point: 'Punkt',
+    lightCurve: 'Lichtkurve',
+    chartHelp: 'Farbpunkte ändern die Intensität. Zeitpunkte unten verschieben die Uhrzeit.',
+    zoomPoints: 'Auf Schaltpunkte zoomen',
+    showFullDay: '24 Stunden anzeigen',
+    chartLabel: 'WRGB Tagesverlauf',
+    checksumMeta: 'Checksumme',
+  },
+  en: {
+    heroTitle: 'Build light profiles fast.',
+    heroCopy: 'Import, edit, save, and export again as QR code.',
+    viewLabel: 'Choose view',
+    languageLabel: 'Choose language',
+    checksum: 'Checksum',
+    length: 'Length',
+    switchPoints: 'Switch points',
+    importExport: 'Import/Export',
+    uploadQr: 'Upload QR image',
+    importJson: 'Import JSON file',
+    qrRawData: 'QR raw data',
+    decode: 'Decode',
+    reset: 'Reset',
+    samples: 'Sample profiles',
+    curveCreation: 'Curve editor',
+    profileIdHex: 'Profile ID hex',
+    profileIdShort: 'Profile ID',
+    unknownModel: 'Unknown model detected',
+    unknownModelHelp: 'is not mapped yet.',
+    unknownModelAction: 'Suggest model',
+    channelLocks: 'Lock channels',
+    presetGenerator: 'Preset generator',
+    presetHelp: 'Choose a curve and set when it starts and ends.',
+    preset: 'Preset',
+    start: 'Start',
+    end: 'End',
+    generate: 'Generate',
+    actions: 'Actions',
+    hour: 'Hour',
+    minute: 'Minute',
+    intensity: 'Intensity',
+    duplicatePoint: 'Duplicate switch point',
+    deletePoint: 'Delete switch point',
+    copy: 'Copy',
+    generatedQr: 'Generated FZone QR code',
+    publishProfile: 'Publish profile',
+    profileName: 'Profile name',
+    description: 'Description',
+    save: 'Saving',
+    publish: 'Publish',
+    newLength: 'New length',
+    newChecksum: 'New checksum',
+    generatedPayload: 'Generated payload',
+    storageSearch: 'Profile storage/search',
+    search: 'Search',
+    model: 'Model',
+    adminCode: 'Admin code',
+    optional: 'optional',
+    adminActive: 'Admin mode active. Delete buttons are visible.',
+    readOnly: 'Without an admin code, profiles are read-only.',
+    communityProfiles: 'Community profiles',
+    allModels: 'All models',
+    searchPlaceholder: 'Name, tag, model',
+    points: 'points',
+    delete: 'Delete',
+    noProfiles: 'No matching profiles found.',
+    footer: 'Unofficial community tool by User60311. Not affiliated with FZone; QR profiles are only published voluntarily.',
+    undo: 'Undo',
+    redo: 'Redo',
+    point: 'Point',
+    lightCurve: 'Light curve',
+    chartHelp: 'Color points change intensity. Time points below move the switch time.',
+    zoomPoints: 'Zoom to switch points',
+    showFullDay: 'Show 24 hours',
+    chartLabel: 'WRGB daily curve',
+    checksumMeta: 'Checksum',
+  },
+} as const
+
+type LightPreset = {
+  name: string
+  description: string
+  points: Array<Omit<FzonePoint, 'id'>>
+}
+
+const LIGHT_PRESETS: LightPreset[] = [
+  {
+    name: 'Sanfter Tag',
+    description: 'Weicher Start, ruhiger Peak, kurzer Abend.',
+    points: [
+      { hour: 7, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 15, white: 14, red: 6, green: 8, blue: 16 },
+      { hour: 9, minute: 0, white: 35, red: 18, green: 24, blue: 32 },
+      { hour: 10, minute: 15, white: 56, red: 30, green: 38, blue: 52 },
+      { hour: 12, minute: 30, white: 78, red: 48, green: 58, blue: 72 },
+      { hour: 14, minute: 30, white: 84, red: 52, green: 62, blue: 76 },
+      { hour: 16, minute: 30, white: 82, red: 50, green: 60, blue: 74 },
+      { hour: 18, minute: 30, white: 52, red: 28, green: 34, blue: 48 },
+      { hour: 20, minute: 0, white: 22, red: 12, green: 14, blue: 25 },
+      { hour: 20, minute: 45, white: 8, red: 4, green: 4, blue: 12 },
+      { hour: 21, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Pflanzen-Peak',
+    description: 'Längerer heller Mittelteil für stark bepflanzte Becken.',
+    points: [
+      { hour: 8, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 45, white: 22, red: 12, green: 16, blue: 22 },
+      { hour: 9, minute: 30, white: 45, red: 28, green: 34, blue: 42 },
+      { hour: 10, minute: 15, white: 68, red: 44, green: 54, blue: 64 },
+      { hour: 11, minute: 0, white: 92, red: 62, green: 72, blue: 88 },
+      { hour: 13, minute: 0, white: 100, red: 72, green: 84, blue: 96 },
+      { hour: 15, minute: 30, white: 98, red: 70, green: 82, blue: 94 },
+      { hour: 17, minute: 30, white: 92, red: 62, green: 72, blue: 88 },
+      { hour: 18, minute: 30, white: 64, red: 38, green: 46, blue: 58 },
+      { hour: 19, minute: 30, white: 36, red: 18, green: 22, blue: 34 },
+      { hour: 20, minute: 15, white: 12, red: 6, green: 8, blue: 14 },
+      { hour: 21, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Abendblau',
+    description: 'Normaler Tag mit längerem blauen Ausklang.',
+    points: [
+      { hour: 8, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 45, white: 20, red: 8, green: 12, blue: 28 },
+      { hour: 10, minute: 0, white: 60, red: 32, green: 40, blue: 55 },
+      { hour: 12, minute: 0, white: 82, red: 42, green: 52, blue: 78 },
+      { hour: 15, minute: 0, white: 85, red: 45, green: 55, blue: 80 },
+      { hour: 17, minute: 0, white: 66, red: 32, green: 40, blue: 70 },
+      { hour: 18, minute: 30, white: 45, red: 20, green: 24, blue: 52 },
+      { hour: 19, minute: 45, white: 22, red: 8, green: 12, blue: 42 },
+      { hour: 21, minute: 0, white: 8, red: 2, green: 4, blue: 20 },
+      { hour: 21, minute: 45, white: 4, red: 0, green: 2, blue: 12 },
+      { hour: 22, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Amazonas',
+    description: 'Warm, weich und leicht rötlich für Schwarzwasser-Look.',
+    points: [
+      { hour: 7, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 15, white: 12, red: 10, green: 5, blue: 4 },
+      { hour: 9, minute: 0, white: 30, red: 28, green: 12, blue: 10 },
+      { hour: 10, minute: 30, white: 52, red: 48, green: 22, blue: 18 },
+      { hour: 12, minute: 30, white: 66, red: 62, green: 32, blue: 24 },
+      { hour: 15, minute: 0, white: 70, red: 66, green: 34, blue: 26 },
+      { hour: 17, minute: 30, white: 56, red: 52, green: 24, blue: 18 },
+      { hour: 19, minute: 0, white: 30, red: 30, green: 12, blue: 10 },
+      { hour: 20, minute: 15, white: 10, red: 12, green: 4, blue: 4 },
+      { hour: 21, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Meerwasser',
+    description: 'Blau betont, klarer Peak und langer Actinic-Abend.',
+    points: [
+      { hour: 7, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 0, white: 4, red: 0, green: 2, blue: 22 },
+      { hour: 9, minute: 0, white: 18, red: 2, green: 8, blue: 52 },
+      { hour: 10, minute: 30, white: 48, red: 6, green: 20, blue: 82 },
+      { hour: 12, minute: 0, white: 76, red: 10, green: 34, blue: 100 },
+      { hour: 15, minute: 30, white: 78, red: 10, green: 34, blue: 100 },
+      { hour: 17, minute: 30, white: 52, red: 6, green: 20, blue: 86 },
+      { hour: 19, minute: 30, white: 18, red: 2, green: 8, blue: 58 },
+      { hour: 21, minute: 0, white: 4, red: 0, green: 2, blue: 28 },
+      { hour: 22, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Asien-Style',
+    description: 'Frischer Look mit sattem Grün und kühler Klarheit.',
+    points: [
+      { hour: 7, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 30, white: 18, red: 8, green: 18, blue: 20 },
+      { hour: 9, minute: 30, white: 42, red: 18, green: 42, blue: 46 },
+      { hour: 10, minute: 45, white: 70, red: 30, green: 72, blue: 76 },
+      { hour: 12, minute: 30, white: 86, red: 38, green: 92, blue: 90 },
+      { hour: 15, minute: 30, white: 88, red: 38, green: 94, blue: 92 },
+      { hour: 17, minute: 30, white: 68, red: 28, green: 70, blue: 76 },
+      { hour: 19, minute: 0, white: 34, red: 14, green: 34, blue: 42 },
+      { hour: 20, minute: 30, white: 8, red: 4, green: 8, blue: 16 },
+      { hour: 21, minute: 15, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Low-Tech',
+    description: 'Kürzer und sanfter für Becken ohne CO2.',
+    points: [
+      { hour: 9, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 10, minute: 0, white: 20, red: 10, green: 12, blue: 18 },
+      { hour: 11, minute: 30, white: 48, red: 24, green: 28, blue: 42 },
+      { hour: 14, minute: 30, white: 62, red: 30, green: 36, blue: 54 },
+      { hour: 17, minute: 0, white: 46, red: 22, green: 26, blue: 40 },
+      { hour: 18, minute: 30, white: 18, red: 8, green: 10, blue: 18 },
+      { hour: 19, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Algenpause',
+    description: 'Geteilter Tag mit ruhiger Mittagspause.',
+    points: [
+      { hour: 8, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 9, minute: 0, white: 34, red: 18, green: 22, blue: 34 },
+      { hour: 10, minute: 30, white: 76, red: 44, green: 54, blue: 72 },
+      { hour: 12, minute: 0, white: 82, red: 48, green: 58, blue: 76 },
+      { hour: 13, minute: 0, white: 28, red: 12, green: 16, blue: 28 },
+      { hour: 14, minute: 30, white: 28, red: 12, green: 16, blue: 28 },
+      { hour: 15, minute: 30, white: 78, red: 44, green: 54, blue: 74 },
+      { hour: 17, minute: 30, white: 82, red: 48, green: 58, blue: 76 },
+      { hour: 19, minute: 0, white: 34, red: 16, green: 20, blue: 34 },
+      { hour: 20, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Showcase',
+    description: 'Viele Punkte, deutlicher Verlauf, ideal zum Ausprobieren.',
+    points: [
+      { hour: 7, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 7, minute: 45, white: 8, red: 4, green: 4, blue: 14 },
+      { hour: 8, minute: 30, white: 22, red: 12, green: 14, blue: 28 },
+      { hour: 9, minute: 15, white: 42, red: 24, green: 30, blue: 46 },
+      { hour: 10, minute: 15, white: 68, red: 42, green: 52, blue: 70 },
+      { hour: 11, minute: 30, white: 88, red: 58, green: 70, blue: 88 },
+      { hour: 13, minute: 0, white: 100, red: 68, green: 82, blue: 98 },
+      { hour: 14, minute: 45, white: 96, red: 64, green: 80, blue: 96 },
+      { hour: 16, minute: 15, white: 82, red: 50, green: 64, blue: 84 },
+      { hour: 17, minute: 45, white: 64, red: 34, green: 44, blue: 68 },
+      { hour: 19, minute: 0, white: 36, red: 18, green: 22, blue: 42 },
+      { hour: 20, minute: 15, white: 16, red: 8, green: 8, blue: 26 },
+      { hour: 21, minute: 15, white: 4, red: 1, green: 2, blue: 12 },
+      { hour: 22, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Garnelen-Morgen',
+    description: 'Sehr sanft, früh hell, ohne harten Peak.',
+    points: [
+      { hour: 6, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 7, minute: 15, white: 5, red: 3, green: 3, blue: 8 },
+      { hour: 8, minute: 0, white: 18, red: 8, green: 10, blue: 18 },
+      { hour: 9, minute: 30, white: 36, red: 16, green: 20, blue: 32 },
+      { hour: 11, minute: 30, white: 52, red: 24, green: 30, blue: 46 },
+      { hour: 14, minute: 30, white: 54, red: 24, green: 30, blue: 48 },
+      { hour: 16, minute: 30, white: 44, red: 18, green: 24, blue: 38 },
+      { hour: 18, minute: 0, white: 24, red: 10, green: 12, blue: 24 },
+      { hour: 19, minute: 15, white: 8, red: 3, green: 4, blue: 12 },
+      { hour: 20, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Diskus-Warm',
+    description: 'Warm und ruhig mit weichem Rotanteil.',
+    points: [
+      { hour: 8, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 45, white: 10, red: 12, green: 4, blue: 5 },
+      { hour: 9, minute: 45, white: 28, red: 34, green: 12, blue: 12 },
+      { hour: 11, minute: 0, white: 48, red: 56, green: 22, blue: 20 },
+      { hour: 12, minute: 30, white: 62, red: 72, green: 30, blue: 26 },
+      { hour: 15, minute: 0, white: 66, red: 76, green: 32, blue: 28 },
+      { hour: 17, minute: 0, white: 52, red: 60, green: 24, blue: 22 },
+      { hour: 18, minute: 45, white: 30, red: 38, green: 12, blue: 14 },
+      { hour: 20, minute: 0, white: 10, red: 14, green: 4, blue: 5 },
+      { hour: 20, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Dutch Style',
+    description: 'Knackiger Tagesbogen für dichte Pflanzenfarben.',
+    points: [
+      { hour: 7, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 0, white: 18, red: 10, green: 14, blue: 18 },
+      { hour: 8, minute: 45, white: 42, red: 24, green: 34, blue: 42 },
+      { hour: 9, minute: 45, white: 70, red: 42, green: 62, blue: 68 },
+      { hour: 11, minute: 0, white: 94, red: 62, green: 88, blue: 90 },
+      { hour: 13, minute: 0, white: 100, red: 70, green: 98, blue: 96 },
+      { hour: 15, minute: 30, white: 96, red: 66, green: 94, blue: 92 },
+      { hour: 17, minute: 0, white: 76, red: 46, green: 68, blue: 72 },
+      { hour: 18, minute: 30, white: 44, red: 24, green: 36, blue: 42 },
+      { hour: 19, minute: 30, white: 16, red: 8, green: 10, blue: 16 },
+      { hour: 20, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Iwagumi Klar',
+    description: 'Kühl, hell und minimalistisch für Steinlayouts.',
+    points: [
+      { hour: 8, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 9, minute: 0, white: 14, red: 4, green: 8, blue: 18 },
+      { hour: 9, minute: 45, white: 42, red: 10, green: 22, blue: 46 },
+      { hour: 10, minute: 45, white: 74, red: 18, green: 42, blue: 78 },
+      { hour: 12, minute: 0, white: 92, red: 24, green: 56, blue: 96 },
+      { hour: 15, minute: 0, white: 94, red: 24, green: 56, blue: 98 },
+      { hour: 17, minute: 0, white: 72, red: 16, green: 38, blue: 76 },
+      { hour: 18, minute: 15, white: 34, red: 8, green: 18, blue: 42 },
+      { hour: 19, minute: 15, white: 8, red: 2, green: 4, blue: 14 },
+      { hour: 19, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Schattenwald',
+    description: 'Gedämpftes Licht mit warmem, natürlichem Verlauf.',
+    points: [
+      { hour: 7, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 30, white: 8, red: 6, green: 4, blue: 6 },
+      { hour: 9, minute: 30, white: 24, red: 18, green: 14, blue: 16 },
+      { hour: 11, minute: 0, white: 42, red: 32, green: 24, blue: 26 },
+      { hour: 13, minute: 0, white: 58, red: 44, green: 34, blue: 36 },
+      { hour: 15, minute: 30, white: 56, red: 42, green: 32, blue: 34 },
+      { hour: 17, minute: 30, white: 38, red: 28, green: 20, blue: 22 },
+      { hour: 19, minute: 0, white: 18, red: 14, green: 8, blue: 10 },
+      { hour: 20, minute: 15, white: 5, red: 4, green: 2, blue: 3 },
+      { hour: 20, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Biotop Soft',
+    description: 'Natürlich und zurückhaltend mit sanfter Mittagshöhe.',
+    points: [
+      { hour: 8, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 40, white: 10, red: 6, green: 5, blue: 8 },
+      { hour: 9, minute: 30, white: 26, red: 16, green: 14, blue: 22 },
+      { hour: 10, minute: 45, white: 46, red: 28, green: 28, blue: 42 },
+      { hour: 12, minute: 30, white: 64, red: 40, green: 42, blue: 58 },
+      { hour: 14, minute: 30, white: 68, red: 42, green: 44, blue: 60 },
+      { hour: 16, minute: 45, white: 52, red: 30, green: 32, blue: 46 },
+      { hour: 18, minute: 30, white: 28, red: 16, green: 16, blue: 28 },
+      { hour: 19, minute: 45, white: 8, red: 4, green: 4, blue: 10 },
+      { hour: 20, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Rio Negro Schwarzwasser',
+    description: 'Dunkel, bernsteinfarben und sehr sanft für Schwarzwasser-Becken.',
+    points: [
+      { hour: 8, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 9, minute: 15, white: 6, red: 8, green: 2, blue: 2 },
+      { hour: 10, minute: 15, white: 18, red: 24, green: 6, blue: 5 },
+      { hour: 11, minute: 45, white: 34, red: 44, green: 12, blue: 9 },
+      { hour: 13, minute: 30, white: 44, red: 58, green: 18, blue: 12 },
+      { hour: 15, minute: 30, white: 42, red: 54, green: 16, blue: 11 },
+      { hour: 17, minute: 30, white: 28, red: 36, green: 10, blue: 8 },
+      { hour: 19, minute: 0, white: 12, red: 18, green: 4, blue: 4 },
+      { hour: 20, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Orinoco Klarwasser',
+    description: 'Klarer, natürlicher Tagesbogen mit leicht kühlem Peak.',
+    points: [
+      { hour: 7, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 30, white: 14, red: 8, green: 10, blue: 16 },
+      { hour: 9, minute: 45, white: 38, red: 20, green: 26, blue: 40 },
+      { hour: 11, minute: 30, white: 66, red: 34, green: 44, blue: 68 },
+      { hour: 13, minute: 30, white: 78, red: 40, green: 52, blue: 82 },
+      { hour: 16, minute: 0, white: 74, red: 36, green: 48, blue: 78 },
+      { hour: 18, minute: 0, white: 42, red: 20, green: 26, blue: 48 },
+      { hour: 19, minute: 30, white: 12, red: 6, green: 8, blue: 18 },
+      { hour: 20, minute: 15, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Südostasien Bach',
+    description: 'Grünlich-weich mit gedämpftem Licht für Bach- und Wurzelbecken.',
+    points: [
+      { hour: 7, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 15, white: 8, red: 5, green: 8, blue: 7 },
+      { hour: 9, minute: 15, white: 24, red: 12, green: 24, blue: 20 },
+      { hour: 10, minute: 45, white: 46, red: 24, green: 48, blue: 40 },
+      { hour: 12, minute: 45, white: 62, red: 34, green: 68, blue: 56 },
+      { hour: 15, minute: 30, white: 60, red: 32, green: 66, blue: 54 },
+      { hour: 17, minute: 45, white: 38, red: 18, green: 40, blue: 34 },
+      { hour: 19, minute: 15, white: 14, red: 6, green: 14, blue: 14 },
+      { hour: 20, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Tanganjika Fels',
+    description: 'Heller, klarer Look für Felsaufbauten und sandige Böden.',
+    points: [
+      { hour: 8, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 45, white: 18, red: 4, green: 10, blue: 24 },
+      { hour: 9, minute: 45, white: 50, red: 10, green: 26, blue: 58 },
+      { hour: 11, minute: 15, white: 82, red: 18, green: 42, blue: 90 },
+      { hour: 13, minute: 30, white: 96, red: 22, green: 50, blue: 100 },
+      { hour: 16, minute: 0, white: 92, red: 20, green: 48, blue: 98 },
+      { hour: 18, minute: 0, white: 54, red: 10, green: 28, blue: 64 },
+      { hour: 19, minute: 30, white: 16, red: 2, green: 8, blue: 24 },
+      { hour: 20, minute: 15, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Malawi Klar',
+    description: 'Kontrastreiches, blau-kühles Licht für Cichliden-Becken.',
+    points: [
+      { hour: 7, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 8, minute: 15, white: 20, red: 3, green: 10, blue: 28 },
+      { hour: 9, minute: 30, white: 56, red: 8, green: 26, blue: 70 },
+      { hour: 11, minute: 0, white: 88, red: 14, green: 40, blue: 96 },
+      { hour: 13, minute: 30, white: 100, red: 18, green: 48, blue: 100 },
+      { hour: 16, minute: 30, white: 94, red: 14, green: 42, blue: 98 },
+      { hour: 18, minute: 30, white: 52, red: 8, green: 24, blue: 68 },
+      { hour: 20, minute: 0, white: 14, red: 2, green: 6, blue: 26 },
+      { hour: 20, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Westafrika Bach',
+    description: 'Warm, flach und ruhig für Waldfluss- und Bachbiotope.',
+    points: [
+      { hour: 8, minute: 15, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 9, minute: 0, white: 8, red: 8, green: 4, blue: 4 },
+      { hour: 10, minute: 0, white: 24, red: 24, green: 12, blue: 10 },
+      { hour: 11, minute: 30, white: 42, red: 42, green: 22, blue: 16 },
+      { hour: 13, minute: 30, white: 54, red: 56, green: 30, blue: 22 },
+      { hour: 16, minute: 0, white: 48, red: 48, green: 24, blue: 18 },
+      { hour: 18, minute: 0, white: 24, red: 26, green: 12, blue: 10 },
+      { hour: 19, minute: 15, white: 8, red: 10, green: 4, blue: 3 },
+      { hour: 20, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Mangroven Dämmerung',
+    description: 'Langer, warmer Randlicht-Verlauf mit wenig Blau.',
+    points: [
+      { hour: 7, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 7, minute: 45, white: 5, red: 8, green: 2, blue: 2 },
+      { hour: 8, minute: 45, white: 18, red: 24, green: 8, blue: 6 },
+      { hour: 10, minute: 30, white: 42, red: 52, green: 20, blue: 14 },
+      { hour: 13, minute: 0, white: 60, red: 72, green: 32, blue: 20 },
+      { hour: 15, minute: 30, white: 58, red: 68, green: 30, blue: 18 },
+      { hour: 17, minute: 30, white: 38, red: 48, green: 16, blue: 12 },
+      { hour: 19, minute: 0, white: 18, red: 26, green: 6, blue: 5 },
+      { hour: 20, minute: 30, white: 4, red: 8, green: 1, blue: 1 },
+      { hour: 21, minute: 15, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Wabi-Kusa',
+    description: 'Kurzer, klarer Tag für offene Pflanzen-Setups.',
+    points: [
+      { hour: 9, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 9, minute: 20, white: 12, red: 6, green: 10, blue: 12 },
+      { hour: 10, minute: 0, white: 40, red: 20, green: 34, blue: 38 },
+      { hour: 11, minute: 0, white: 74, red: 40, green: 68, blue: 72 },
+      { hour: 12, minute: 30, white: 92, red: 52, green: 88, blue: 88 },
+      { hour: 14, minute: 30, white: 88, red: 48, green: 82, blue: 84 },
+      { hour: 16, minute: 0, white: 58, red: 28, green: 52, blue: 58 },
+      { hour: 17, minute: 0, white: 24, red: 10, green: 18, blue: 26 },
+      { hour: 17, minute: 45, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Feierabend',
+    description: 'Später Start und schöner Abend für Becken im Wohnraum.',
+    points: [
+      { hour: 11, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 11, minute: 45, white: 10, red: 4, green: 6, blue: 12 },
+      { hour: 12, minute: 45, white: 34, red: 18, green: 22, blue: 34 },
+      { hour: 14, minute: 30, white: 64, red: 36, green: 44, blue: 62 },
+      { hour: 16, minute: 30, white: 82, red: 46, green: 58, blue: 78 },
+      { hour: 18, minute: 30, white: 78, red: 42, green: 54, blue: 76 },
+      { hour: 20, minute: 0, white: 52, red: 26, green: 34, blue: 58 },
+      { hour: 21, minute: 15, white: 22, red: 8, green: 10, blue: 36 },
+      { hour: 22, minute: 30, white: 6, red: 1, green: 2, blue: 16 },
+      { hour: 23, minute: 0, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+  {
+    name: 'Mondlicht Blau',
+    description: 'Kleiner Tagesbogen mit kurzem blauem Ausklang.',
+    points: [
+      { hour: 8, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+      { hour: 9, minute: 30, white: 22, red: 8, green: 12, blue: 24 },
+      { hour: 11, minute: 0, white: 58, red: 24, green: 34, blue: 58 },
+      { hour: 13, minute: 30, white: 76, red: 34, green: 46, blue: 74 },
+      { hour: 16, minute: 0, white: 72, red: 30, green: 42, blue: 74 },
+      { hour: 18, minute: 0, white: 42, red: 16, green: 22, blue: 52 },
+      { hour: 19, minute: 30, white: 14, red: 4, green: 6, blue: 34 },
+      { hour: 20, minute: 45, white: 2, red: 0, green: 0, blue: 12 },
+      { hour: 21, minute: 30, white: 0, red: 0, green: 0, blue: 0 },
+    ],
+  },
+]
+
+const PRESET_GROUPS = [
+  {
+    labelDe: 'Alltag',
+    labelEn: 'Everyday',
+    presets: ['Sanfter Tag', 'Garnelen-Morgen', 'Low-Tech', 'Feierabend', 'Abendblau', 'Mondlicht Blau'],
+  },
+  {
+    labelDe: 'Pflanzen & Aquascaping',
+    labelEn: 'Plants & Aquascaping',
+    presets: ['Pflanzen-Peak', 'Dutch Style', 'Iwagumi Klar', 'Asien-Style', 'Wabi-Kusa', 'Showcase', 'Algenpause'],
+  },
+  {
+    labelDe: 'Biotop & Regionen',
+    labelEn: 'Biotope & Regions',
+    presets: [
+      'Biotop Soft',
+      'Amazonas',
+      'Rio Negro Schwarzwasser',
+      'Orinoco Klarwasser',
+      'Südostasien Bach',
+      'Schattenwald',
+      'Diskus-Warm',
+      'Westafrika Bach',
+      'Mangroven Dämmerung',
+    ],
+  },
+  {
+    labelDe: 'Spezial',
+    labelEn: 'Special',
+    presets: ['Meerwasser', 'Tanganjika Fels', 'Malawi Klar'],
+  },
+] as const
 
 const emptyPoint = (): FzonePoint => ({
   id: crypto.randomUUID(),
@@ -84,7 +670,25 @@ function App() {
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('fzone-admin-token') ?? '')
   const [jsonDataUrl, setJsonDataUrl] = useState('')
   const [chartViewMode, setChartViewMode] = useState<'day' | 'points'>('day')
+  const [interfaceMode, setInterfaceMode] = useState<'simple' | 'profi'>('simple')
+  const [language, setLanguage] = useState<UiLanguage>('de')
+  const [selectedPresetName, setSelectedPresetName] = useState(LIGHT_PRESETS[0].name)
+  const [presetStartTime, setPresetStartTime] = useState('08:00')
+  const [presetEndTime, setPresetEndTime] = useState('21:30')
+  const [lockedChannels, setLockedChannels] = useState<Record<ChannelKey, boolean>>({
+    white: false,
+    red: false,
+    green: false,
+    blue: false,
+  })
+  const [undoStack, setUndoStack] = useState<FzoneProfile[]>([])
+  const [redoStack, setRedoStack] = useState<FzoneProfile[]>([])
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
+  const profileRef = useRef(profile)
+
+  useEffect(() => {
+    profileRef.current = profile
+  }, [profile])
 
   const encodedPayload = useMemo(() => {
     try {
@@ -133,6 +737,7 @@ function App() {
       return null
     }
   }, [encodedPayload])
+  const text = UI_TEXT[language]
 
   const modelOptions = useMemo(
     () => ['Alle Modelle', ...Array.from(new Set(communityProfiles.map((item) => item.modelLabel))).sort()],
@@ -156,14 +761,73 @@ function App() {
     loadCommunityProfiles()
   }, [])
 
+  function commitProfile(update: FzoneProfile | ((current: FzoneProfile) => FzoneProfile)) {
+    const current = profileRef.current
+    const nextProfile = typeof update === 'function' ? update(current) : update
+
+    rememberProfile(current)
+    setProfile(nextProfile)
+    profileRef.current = nextProfile
+  }
+
+  function rememberProfile(snapshot = profileRef.current) {
+    setUndoStack((items) => [...items, snapshot].slice(-MAX_HISTORY_ITEMS))
+    setRedoStack([])
+  }
+
+  function replaceProfile(nextProfile: FzoneProfile) {
+    commitProfile(nextProfile)
+    setPublishName(suggestProfileName(nextProfile))
+    setPublishDescription('')
+    setPublishTags('')
+  }
+
+  function undoProfile() {
+    setUndoStack((items) => {
+      const previous = items.at(-1)
+
+      if (!previous) {
+        return items
+      }
+
+      const current = profileRef.current
+      setRedoStack((redoItems) => [current, ...redoItems].slice(0, MAX_HISTORY_ITEMS))
+      setProfile(previous)
+      profileRef.current = previous
+
+      return items.slice(0, -1)
+    })
+  }
+
+  function redoProfile() {
+    setRedoStack((items) => {
+      const nextProfile = items[0]
+
+      if (!nextProfile) {
+        return items
+      }
+
+      const current = profileRef.current
+      setUndoStack((undoItems) => [...undoItems, current].slice(-MAX_HISTORY_ITEMS))
+      setProfile(nextProfile)
+      profileRef.current = nextProfile
+
+      return items.slice(1)
+    })
+  }
+
+  function toggleChannelLock(channel: ChannelKey) {
+    setLockedChannels((current) => ({
+      ...current,
+      [channel]: !current[channel],
+    }))
+  }
+
   function importPayload(payload: string, source = 'Payload importiert.') {
     try {
       const nextProfile = parseFzonePayload(payload)
-      setProfile(nextProfile)
+      replaceProfile(nextProfile)
       setRawInput(payload)
-      setPublishName(suggestProfileName(nextProfile))
-      setPublishDescription('')
-      setPublishTags('')
       setError('')
       setNotice(
         nextProfile.modelLabel.startsWith('Unbekanntes Modell')
@@ -217,7 +881,11 @@ function App() {
   }
 
   function updatePoint(id: string, key: keyof FzonePoint, value: number) {
-    setProfile((current) => ({
+    if (isChannelKey(key) && lockedChannels[key]) {
+      return
+    }
+
+    commitProfile((current) => ({
       ...current,
       points: current.points.map((point) => {
         if (point.id !== id) {
@@ -236,8 +904,8 @@ function App() {
     }))
   }
 
-  function updatePointFields(id: string, updates: Partial<Pick<FzonePoint, 'hour' | 'minute' | ChannelKey>>) {
-    setProfile((current) => ({
+  function updatePointFields(id: string, updates: Partial<Pick<FzonePoint, 'hour' | 'minute' | ChannelKey>>, remember = true) {
+    const updateProfile = (current: FzoneProfile): FzoneProfile => ({
       ...current,
       points: current.points.map((point) => {
         if (point.id !== id) {
@@ -248,34 +916,96 @@ function App() {
           ...point,
           hour: updates.hour === undefined ? point.hour : clamp(updates.hour, 0, 23),
           minute: updates.minute === undefined ? point.minute : clamp(updates.minute, 0, 59),
-          white: updates.white === undefined ? point.white : clamp(updates.white, 0, MAX_INTENSITY_PERCENT),
-          red: updates.red === undefined ? point.red : clamp(updates.red, 0, MAX_INTENSITY_PERCENT),
-          green: updates.green === undefined ? point.green : clamp(updates.green, 0, MAX_INTENSITY_PERCENT),
-          blue: updates.blue === undefined ? point.blue : clamp(updates.blue, 0, MAX_INTENSITY_PERCENT),
+          white: updates.white === undefined || lockedChannels.white ? point.white : clamp(updates.white, 0, MAX_INTENSITY_PERCENT),
+          red: updates.red === undefined || lockedChannels.red ? point.red : clamp(updates.red, 0, MAX_INTENSITY_PERCENT),
+          green: updates.green === undefined || lockedChannels.green ? point.green : clamp(updates.green, 0, MAX_INTENSITY_PERCENT),
+          blue: updates.blue === undefined || lockedChannels.blue ? point.blue : clamp(updates.blue, 0, MAX_INTENSITY_PERCENT),
         }
       }),
-    }))
+    })
+
+    if (remember) {
+      commitProfile(updateProfile)
+      return
+    }
+
+    const nextProfile = updateProfile(profileRef.current)
+    setProfile(nextProfile)
+    profileRef.current = nextProfile
   }
 
   function addPoint() {
-    setProfile((current) => ({
+    commitProfile((current) => ({
       ...current,
       points: [...current.points, emptyPoint()].slice(0, MAX_POINTS),
     }))
   }
 
+  function duplicatePoint(id: string) {
+    commitProfile((current) => {
+      if (current.points.length >= MAX_POINTS) {
+        return current
+      }
+
+      const index = current.points.findIndex((point) => point.id === id)
+
+      if (index < 0) {
+        return current
+      }
+
+      const source = current.points[index]
+      const sourceMinute = source.hour * 60 + source.minute
+      const nextMinute = clamp(sourceMinute + 30, 0, 1439)
+      const duplicate = {
+        ...source,
+        id: crypto.randomUUID(),
+        hour: Math.floor(nextMinute / 60),
+        minute: nextMinute % 60,
+      }
+      const points = [...current.points]
+      points.splice(index + 1, 0, duplicate)
+
+      return {
+        ...current,
+        points,
+      }
+    })
+  }
+
   function removePoint(id: string) {
-    setProfile((current) => ({
+    commitProfile((current) => ({
       ...current,
       points: current.points.length > 1 ? current.points.filter((point) => point.id !== id) : current.points,
     }))
   }
 
   function updateProfileMeta(key: 'prefix' | 'profileId', value: string) {
-    setProfile((current) => ({
+    commitProfile((current) => ({
       ...current,
       [key]: key === 'profileId' ? clampByte(Number.parseInt(value || '0', 16)) : value.trim(),
     }))
+  }
+
+  function generatePreset() {
+    const preset = LIGHT_PRESETS.find((item) => item.name === selectedPresetName) ?? LIGHT_PRESETS[0]
+    const startMinute = parseTimeInput(presetStartTime)
+    const endMinute = parseTimeInput(presetEndTime)
+
+    if (endMinute <= startMinute) {
+      setError('Die Endzeit muss nach der Startzeit liegen.')
+      setNotice('')
+      return
+    }
+
+    commitProfile((current) => ({
+      ...current,
+      points: fitPresetToRange(preset, startMinute, endMinute).map((point) => ({
+        id: crypto.randomUUID(),
+        ...point,
+      })),
+    }))
+    setNotice(`${preset.name} von ${presetStartTime} bis ${presetEndTime} erzeugt.`)
+    setError('')
   }
 
   async function copyPayload() {
@@ -295,11 +1025,8 @@ function App() {
       const nextProfile = parseFzoneJsonProfile(json)
       const nextPayload = encodeFzoneProfile(nextProfile)
 
-      setProfile(nextProfile)
+      replaceProfile(nextProfile)
       setRawInput(nextPayload)
-      setPublishName(suggestProfileName(nextProfile))
-      setPublishDescription('')
-      setPublishTags('')
       setError('')
       setNotice(`${file.name} importiert.`)
     } catch (exception) {
@@ -443,17 +1170,45 @@ function App() {
       <section className="app-hero">
         <div>
           <p className="eyebrow">FZone Light Lab (by User60311)</p>
-          <h1>Lichtprofile einfach bauen.</h1>
+          <h1>{text.heroTitle}</h1>
           <p className="hero-copy">
-            Importieren, anpassen, speichern und wieder als QR-Code ausgeben.
+            {text.heroCopy}
           </p>
         </div>
         <div className="hero-status" aria-label="Profilstatus">
-          <StatusPill ok={profile.checksumValid} label="Checksumme" />
-          <StatusPill ok={profile.lengthValid} label="Länge" />
+          <div className="mode-switch" aria-label={text.viewLabel}>
+            <button
+              type="button"
+              className={interfaceMode === 'simple' ? 'active' : ''}
+              onClick={() => setInterfaceMode('simple')}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              className={interfaceMode === 'profi' ? 'active' : ''}
+              onClick={() => setInterfaceMode('profi')}
+            >
+              Profi
+            </button>
+          </div>
+          <div className="mode-switch" aria-label={text.languageLabel}>
+            <button type="button" className={language === 'de' ? 'active' : ''} onClick={() => setLanguage('de')}>
+              DE
+            </button>
+            <button type="button" className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>
+              EN
+            </button>
+          </div>
+          {interfaceMode === 'profi' && (
+            <>
+              <StatusPill ok={profile.checksumValid} label={text.checksum} />
+              <StatusPill ok={profile.lengthValid} label={text.length} />
+            </>
+          )}
           <div className="metric">
             <strong>{profile.points.length}</strong>
-            <span>Schaltpunkte</span>
+            <span>{text.switchPoints}</span>
           </div>
         </div>
       </section>
@@ -462,38 +1217,42 @@ function App() {
         <aside className="panel import-panel">
           <div className="panel-heading">
             <ScanLine size={20} aria-hidden="true" />
-            <h2>Import/Export</h2>
+            <h2>{text.importExport}</h2>
           </div>
 
           <label className="file-drop">
             <FileImage size={22} aria-hidden="true" />
-            <span>QR-Bild hochladen</span>
+            <span>{text.uploadQr}</span>
             <input type="file" accept="image/*" onChange={decodeImage} />
           </label>
 
           <label className="file-drop">
             <FileJson size={22} aria-hidden="true" />
-            <span>JSON-Datei importieren</span>
+            <span>{text.importJson}</span>
             <input type="file" accept="application/json,.json" onChange={importJsonFile} />
           </label>
 
-          <label className="field">
-            <span>QR-Rohdaten</span>
-            <textarea value={rawInput} onChange={(event) => setRawInput(event.target.value)} spellCheck={false} />
-          </label>
+          {interfaceMode === 'profi' && (
+            <>
+              <label className="field">
+                <span>{text.qrRawData}</span>
+                <textarea value={rawInput} onChange={(event) => setRawInput(event.target.value)} spellCheck={false} />
+              </label>
 
-          <div className="button-row">
-            <button type="button" onClick={() => importPayload(rawInput)}>
-              <QrCode size={17} aria-hidden="true" />
-              Dekodieren
-            </button>
-            <button type="button" className="ghost" onClick={() => importPayload(SAMPLE_PAYLOADS[1].value)}>
-              <RotateCcw size={17} aria-hidden="true" />
-              Reset
-            </button>
-          </div>
+              <div className="button-row">
+                <button type="button" onClick={() => importPayload(rawInput)}>
+                  <QrCode size={17} aria-hidden="true" />
+                  {text.decode}
+                </button>
+                <button type="button" className="ghost" onClick={() => importPayload(SAMPLE_PAYLOADS[1].value)}>
+                  <RotateCcw size={17} aria-hidden="true" />
+                  {text.reset}
+                </button>
+              </div>
+            </>
+          )}
 
-          <div className="sample-list" aria-label="Beispielprofile">
+          <div className="sample-list" aria-label={text.samples}>
             {SAMPLE_PAYLOADS.map((sample) => (
               <button type="button" className="sample-button" key={sample.label} onClick={() => importPayload(sample.value, `${sample.label} geladen.`)}>
                 {sample.label}
@@ -512,46 +1271,59 @@ function App() {
         <section className="panel editor-panel">
           <div className="panel-heading split">
             <div>
-              <p className="section-kicker">Kurvenerstellung</p>
+              <p className="section-kicker">{text.curveCreation}</p>
               <h2>{profile.modelLabel}</h2>
-              <p>
-                Prefix <code>{profile.prefix}</code> / Header <code>04 {profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code>
-              </p>
+              {interfaceMode === 'profi' && (
+                <p>
+                  Prefix <code>{profile.prefix}</code> / {text.profileIdShort}{' '}
+                  <code>{profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code>
+                </p>
+              )}
             </div>
-            <button type="button" onClick={addPoint} disabled={profile.points.length >= MAX_POINTS}>
-              <Plus size={17} aria-hidden="true" />
-              Punkt
-            </button>
+            <div className="editor-actions">
+              <button type="button" className="ghost" onClick={undoProfile} disabled={!undoStack.length} aria-label={text.undo}>
+                <Undo2 size={17} aria-hidden="true" />
+              </button>
+              <button type="button" className="ghost" onClick={redoProfile} disabled={!redoStack.length} aria-label={text.redo}>
+                <Redo2 size={17} aria-hidden="true" />
+              </button>
+              <button type="button" onClick={addPoint} disabled={profile.points.length >= MAX_POINTS}>
+                <Plus size={17} aria-hidden="true" />
+                {text.point}
+              </button>
+            </div>
           </div>
 
-          <div className="meta-grid">
-            <label className="field">
-              <span>Prefix</span>
-              <input value={profile.prefix} onChange={(event) => updateProfileMeta('prefix', event.target.value)} />
-            </label>
-            <label className="field">
-              <span>Profil-ID hex</span>
-              <input
-                value={profile.profileId.toString(16).padStart(2, '0').toUpperCase()}
-                maxLength={2}
-                onChange={(event) => updateProfileMeta('profileId', event.target.value)}
-              />
-            </label>
-          </div>
+          {interfaceMode === 'profi' && (
+            <div className="meta-grid">
+              <label className="field">
+                <span>Prefix</span>
+                <input value={profile.prefix} onChange={(event) => updateProfileMeta('prefix', event.target.value)} />
+              </label>
+              <label className="field">
+                <span>{text.profileIdHex}</span>
+                <input
+                  value={profile.profileId.toString(16).padStart(2, '0').toUpperCase()}
+                  maxLength={2}
+                  onChange={(event) => updateProfileMeta('profileId', event.target.value)}
+                />
+              </label>
+            </div>
+          )}
 
           {unknownModel && (
             <div className="unknown-model">
               <AlertTriangle size={18} aria-hidden="true" />
               <div>
-                <strong>Unbekanntes Modell erkannt</strong>
+                <strong>{text.unknownModel}</strong>
                 <p>
                   Prefix <code>{profile.prefix}</code> mit Header{' '}
-                  <code>04 {profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code> ist noch nicht zugeordnet.
+                  <code>04 {profile.profileId.toString(16).padStart(2, '0').toUpperCase()}</code> {text.unknownModelHelp}
                 </p>
               </div>
               <button type="button" className="ghost" onClick={copyModelSuggestion}>
                 <Copy size={16} aria-hidden="true" />
-                Modell vorschlagen
+                {text.unknownModelAction}
               </button>
             </div>
           )}
@@ -559,20 +1331,96 @@ function App() {
           <ProfileChart
             points={profile.points}
             viewMode={chartViewMode}
+            lockedChannels={lockedChannels}
+            language={language}
+            onBeginEdit={() => rememberProfile()}
             onToggleViewMode={() => setChartViewMode((mode) => (mode === 'day' ? 'points' : 'day'))}
-            onChangePoint={updatePointFields}
+            onChangePoint={(id, updates) => updatePointFields(id, updates, false)}
           />
 
-          <div className="table-wrap">
+          <div className="channel-locks chart-locks" aria-label={text.channelLocks}>
+            <span className="inline-label">{text.channelLocks}</span>
+            <div className="lock-grid">
+              {channelMeta.map((channel) => (
+                <button
+                  type="button"
+                  className={lockedChannels[channel.key] ? 'lock-button active' : 'lock-button'}
+                  key={channel.key}
+                  onClick={() => toggleChannelLock(channel.key)}
+                >
+                  {lockedChannels[channel.key] ? <Lock size={16} aria-hidden="true" /> : <Unlock size={16} aria-hidden="true" />}
+                  <i style={{ background: channel.color }} />
+                  {channel.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <section className="preset-generator">
+            <div className="tool-heading">
+              <strong>{text.presetGenerator}</strong>
+              <span>{text.presetHelp}</span>
+            </div>
+            <div className="generator-grid">
+              <label className="field">
+                <span>{text.preset}</span>
+                <select
+                  value={selectedPresetName}
+                  onChange={(event) => setSelectedPresetName(event.target.value)}
+                  onInput={(event) => setSelectedPresetName(event.currentTarget.value)}
+                >
+                  {PRESET_GROUPS.map((group) => (
+                    <optgroup key={group.labelDe} label={language === 'de' ? group.labelDe : group.labelEn}>
+                      {group.presets.map((presetName) => (
+                        <option key={presetName}>{presetName}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>{text.start}</span>
+                <input
+                  type="time"
+                  value={presetStartTime}
+                  onChange={(event) => setPresetStartTime(event.target.value)}
+                  onInput={(event) => setPresetStartTime(event.currentTarget.value)}
+                />
+              </label>
+              <label className="field">
+                <span>{text.end}</span>
+                <input
+                  type="time"
+                  value={presetEndTime}
+                  onChange={(event) => setPresetEndTime(event.target.value)}
+                  onInput={(event) => setPresetEndTime(event.currentTarget.value)}
+                />
+              </label>
+              <button type="button" onClick={generatePreset}>
+                <Plus size={17} aria-hidden="true" />
+                {text.generate}
+              </button>
+            </div>
+            <p className="generator-description">
+              {(LIGHT_PRESETS.find((preset) => preset.name === selectedPresetName) ?? LIGHT_PRESETS[0]).description}
+            </p>
+          </section>
+
+          <details className="expander-card" open>
+            <summary>
+              <span>{text.switchPoints}</span>
+              <strong>{profile.points.length}</strong>
+            </summary>
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Zeit</th>
+                  <th>{language === 'de' ? 'Zeit' : 'Time'}</th>
                   <th>W</th>
                   <th>R</th>
                   <th>G</th>
                   <th>B</th>
-                  <th aria-label="Aktionen" />
+                  <th aria-label={text.actions} />
                 </tr>
               </thead>
               <tbody>
@@ -582,7 +1430,7 @@ function App() {
                     <tr key={point.id}>
                       <td className="time-cell">
                         <input
-                          aria-label="Stunde"
+                          aria-label={text.hour}
                           type="number"
                           min={0}
                           max={23}
@@ -591,7 +1439,7 @@ function App() {
                         />
                         <span>:</span>
                         <input
-                          aria-label="Minute"
+                          aria-label={text.minute}
                           type="number"
                           min={0}
                           max={59}
@@ -602,17 +1450,27 @@ function App() {
                       {channelMeta.map((channel) => (
                         <td key={channel.key}>
                           <input
-                            aria-label={`${channel.label} Intensität`}
+                            aria-label={`${channel.label} ${text.intensity}`}
                             type="number"
                             min={0}
                             max={MAX_INTENSITY_PERCENT}
                             value={point[channel.key]}
+                            disabled={lockedChannels[channel.key]}
                             onChange={(event) => updatePoint(point.id, channel.key, Number(event.target.value))}
                           />
                         </td>
                       ))}
-                      <td>
-                        <button type="button" className="icon-button" onClick={() => removePoint(point.id)} aria-label="Schaltpunkt löschen">
+                      <td className="action-cell">
+                        <button
+                          type="button"
+                          className="icon-button"
+                          onClick={() => duplicatePoint(point.id)}
+                          disabled={profile.points.length >= MAX_POINTS}
+                          aria-label={text.duplicatePoint}
+                        >
+                          <Copy size={17} aria-hidden="true" />
+                        </button>
+                        <button type="button" className="icon-button" onClick={() => removePoint(point.id)} aria-label={text.deletePoint}>
                           <Trash2 size={17} aria-hidden="true" />
                         </button>
                       </td>
@@ -621,6 +1479,7 @@ function App() {
               </tbody>
             </table>
           </div>
+          </details>
         </section>
 
         <aside className="panel export-panel">
@@ -630,13 +1489,13 @@ function App() {
           </div>
 
           <div className="qr-box">
-            <canvas ref={qrCanvasRef} aria-label="Generierter FZone QR-Code" />
+            <canvas ref={qrCanvasRef} aria-label={text.generatedQr} />
           </div>
 
           <div className="button-row">
             <button type="button" onClick={copyPayload} disabled={!encodedPayload}>
               <Copy size={17} aria-hidden="true" />
-              Kopieren
+              {text.copy}
             </button>
             <a className="button" href={qrDataUrl} download="fzone-lichtprofil.png">
               <Download size={17} aria-hidden="true" />
@@ -651,14 +1510,14 @@ function App() {
           <div className="publish-box">
             <div className="panel-heading mini">
               <Globe2 size={18} aria-hidden="true" />
-              <h3>Profil veröffentlichen</h3>
+              <h3>{text.publishProfile}</h3>
             </div>
             <label className="field">
-              <span>Profilname</span>
+              <span>{text.profileName}</span>
               <input value={publishName} maxLength={80} onChange={(event) => setPublishName(event.target.value)} />
             </label>
             <label className="field">
-              <span>Beschreibung</span>
+              <span>{text.description}</span>
               <textarea
                 className="compact-textarea"
                 value={publishDescription}
@@ -672,76 +1531,82 @@ function App() {
             </label>
             <button type="button" onClick={publishProfile} disabled={!encodedPayload || isPublishing}>
               <Globe2 size={17} aria-hidden="true" />
-              {isPublishing ? 'Speichern' : 'Veröffentlichen'}
+              {isPublishing ? text.save : text.publish}
             </button>
           </div>
 
-          <div className="checksum-box">
-            <div>
-              <span>Neue Länge</span>
-              <strong>{generatedProfile?.declaredLength ?? '-'}</strong>
-            </div>
-            <div>
-              <span>Neue Checksumme</span>
-              <strong>{generatedProfile ? generatedProfile.checksumActual.toString(16).padStart(2, '0').toUpperCase() : '-'}</strong>
-            </div>
-          </div>
+          {interfaceMode === 'profi' && (
+            <>
+              <div className="checksum-box">
+                <div>
+                  <span>{text.newLength}</span>
+                  <strong>{generatedProfile?.declaredLength ?? '-'}</strong>
+                </div>
+                <div>
+                  <span>{text.newChecksum}</span>
+                  <strong>{generatedProfile ? generatedProfile.checksumActual.toString(16).padStart(2, '0').toUpperCase() : '-'}</strong>
+                </div>
+              </div>
 
-          <label className="field">
-            <span>Generierter Payload</span>
-            <textarea className="payload-output" value={encodedPayload} readOnly spellCheck={false} />
-          </label>
+              <label className="field">
+                <span>{text.generatedPayload}</span>
+                <textarea className="payload-output" value={encodedPayload} readOnly spellCheck={false} />
+              </label>
+            </>
+          )}
         </aside>
 
         <aside className="panel storage-panel">
           <div className="panel-heading">
             <Database size={20} aria-hidden="true" />
-            <h2>Profil-Speicher/Suche</h2>
+            <h2>{text.storageSearch}</h2>
           </div>
           <p className={communityAvailable ? 'community-status online' : 'community-status'}>
             {communityMessage}
           </p>
           <div className="community-tools">
             <label className="field">
-              <span>Suchen</span>
+              <span>{text.search}</span>
               <div className="input-with-icon">
                 <Search size={15} aria-hidden="true" />
-                <input value={communityQuery} onChange={(event) => setCommunityQuery(event.target.value)} placeholder="Name, Tag, Modell" />
+                <input value={communityQuery} onChange={(event) => setCommunityQuery(event.target.value)} placeholder={text.searchPlaceholder} />
               </div>
             </label>
             <label className="field">
-              <span>Modell</span>
+              <span>{text.model}</span>
               <select value={communityModel} onChange={(event) => setCommunityModel(event.target.value)}>
                 {modelOptions.map((model) => (
-                  <option key={model}>{model}</option>
+                  <option key={model} value={model}>
+                    {model === 'Alle Modelle' ? text.allModels : model}
+                  </option>
                 ))}
               </select>
             </label>
             <label className="field">
-              <span>Admin-Code</span>
+              <span>{text.adminCode}</span>
               <div className="input-with-icon">
                 <KeyRound size={15} aria-hidden="true" />
-                <input type="password" value={adminToken} onChange={(event) => updateAdminToken(event.target.value)} placeholder="optional" />
+                <input type="password" value={adminToken} onChange={(event) => updateAdminToken(event.target.value)} placeholder={text.optional} />
               </div>
             </label>
             <p className={adminToken.trim() ? 'admin-status active' : 'admin-status'}>
-              {adminToken.trim() ? 'Admin-Modus aktiv. Löschbuttons sind eingeblendet.' : 'Ohne Admin-Code sind Profile nur lesbar.'}
+              {adminToken.trim() ? text.adminActive : text.readOnly}
             </p>
           </div>
-          <div className="community-list" aria-label="Community-Profile">
+          <div className="community-list" aria-label={text.communityProfiles}>
             {filteredCommunityProfiles.map((item) => (
               <article className={adminToken.trim() ? 'community-card admin-enabled' : 'community-card'} key={item.id}>
                 <button type="button" className="community-load" onClick={() => loadCommunityProfile(item.id)}>
                   <strong>{item.name}</strong>
                   <span>{item.modelLabel}</span>
                   <small>
-                    {item.pointCount} Punkte / {item.startTime}-{item.endTime}
+                    {item.pointCount} {text.points} / {item.startTime}-{item.endTime}
                   </small>
                   <small>
                     Prefix {item.prefix} / Header 04 {item.profileId.toString(16).padStart(2, '0').toUpperCase()}
                   </small>
                   {item.description && <small>{item.description}</small>}
-                  <CommunityMeta item={item} />
+                  <CommunityMeta item={item} language={language} />
                 </button>
                 {adminToken.trim() && (
                   <div className="community-actions">
@@ -749,28 +1614,29 @@ function App() {
                       type="button"
                       className="community-delete"
                       onClick={() => deleteCommunityProfile(item.id, item.name)}
-                      aria-label={`${item.name} löschen`}
+                      aria-label={`${item.name} ${text.delete}`}
                     >
                       <Trash2 size={16} aria-hidden="true" />
-                      Löschen
+                      {text.delete}
                     </button>
                   </div>
                 )}
               </article>
             ))}
-            {!filteredCommunityProfiles.length && <p className="empty-state">Keine passenden Profile gefunden.</p>}
+            {!filteredCommunityProfiles.length && <p className="empty-state">{text.noProfiles}</p>}
           </div>
         </aside>
       </section>
       <footer className="app-footer">
-        Inoffizielles Community-Tool von User60311. Nicht verbunden mit FZone; QR-Profile werden nur freiwillig veröffentlicht.
+        {text.footer}
       </footer>
     </main>
   )
 }
 
-function CommunityMeta({ item }: { item: CommunityProfile }) {
-  const date = new Intl.DateTimeFormat('de-DE', {
+function CommunityMeta({ item, language }: { item: CommunityProfile; language: UiLanguage }) {
+  const text = UI_TEXT[language]
+  const date = new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -779,7 +1645,7 @@ function CommunityMeta({ item }: { item: CommunityProfile }) {
   return (
     <div className="community-meta">
       <span>{date}</span>
-      <span>Checksumme {item.checksum}</span>
+      <span>{text.checksumMeta} {item.checksum}</span>
       {item.tags && <span>{item.tags}</span>}
     </div>
   )
@@ -795,6 +1661,31 @@ function suggestProfileName(profile: FzoneProfile) {
 
 function formatPointTime(point: FzonePoint) {
   return `${point.hour.toString().padStart(2, '0')}:${point.minute.toString().padStart(2, '0')}`
+}
+
+function parseTimeInput(value: string) {
+  const [hour = '0', minute = '0'] = value.split(':')
+
+  return clamp(Number.parseInt(hour, 10), 0, 23) * 60 + clamp(Number.parseInt(minute, 10), 0, 59)
+}
+
+function fitPresetToRange(preset: LightPreset, startMinute: number, endMinute: number) {
+  const sorted = [...preset.points].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute))
+  const sourceStart = sorted[0].hour * 60 + sorted[0].minute
+  const sourceEnd = sorted.at(-1)!.hour * 60 + sorted.at(-1)!.minute
+  const sourceSpan = Math.max(1, sourceEnd - sourceStart)
+  const targetSpan = Math.max(1, endMinute - startMinute)
+
+  return sorted.map((point) => {
+    const sourceMinute = point.hour * 60 + point.minute
+    const targetMinute = clamp(startMinute + ((sourceMinute - sourceStart) / sourceSpan) * targetSpan, 0, 1439)
+
+    return {
+      ...point,
+      hour: Math.floor(targetMinute / 60),
+      minute: targetMinute % 60,
+    }
+  })
 }
 
 function slugify(value: string) {
@@ -825,16 +1716,26 @@ function StatusPill({ ok, label }: { ok: boolean; label: string }) {
 function ProfileChart({
   points,
   viewMode,
+  lockedChannels,
+  language,
+  onBeginEdit,
   onToggleViewMode,
   onChangePoint,
 }: {
   points: FzonePoint[]
   viewMode: 'day' | 'points'
+  lockedChannels: Record<ChannelKey, boolean>
+  language: UiLanguage
+  onBeginEdit: () => void
   onToggleViewMode: () => void
   onChangePoint: (id: string, updates: Partial<Pick<FzonePoint, 'hour' | 'minute' | ChannelKey>>) => void
 }) {
+  const text = UI_TEXT[language]
   const svgRef = useRef<SVGSVGElement>(null)
-  const [dragTarget, setDragTarget] = useState<{ pointId: string; channel: ChannelKey } | null>(null)
+  const [dragTarget, setDragTarget] = useState<
+    { pointId: string; channel: ChannelKey } | { pointId: string; mode: 'time' } | null
+  >(null)
+  const [dragTooltip, setDragTooltip] = useState<{ x: number; y: number; label: string } | null>(null)
   const sorted = [...points].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute))
   const firstMinute = sorted[0] ? sorted[0].hour * 60 + sorted[0].minute : 0
   const lastMinute = sorted.at(-1) ? sorted.at(-1)!.hour * 60 + sorted.at(-1)!.minute : 1440
@@ -853,7 +1754,10 @@ function ProfileChart({
   const xTicks = buildHourTicks(domainStart, domainEnd)
   const yTicks = [0, 25, 50, 75, 100]
 
-  function updateFromPointer(event: PointerEvent<SVGElement>, target: { pointId: string; channel: ChannelKey }) {
+  function updateFromPointer(
+    event: PointerEvent<SVGElement>,
+    target: { pointId: string; channel: ChannelKey } | { pointId: string; mode: 'time' },
+  ) {
     const box = svgRef.current?.getBoundingClientRect()
 
     if (!box) {
@@ -868,18 +1772,56 @@ function ProfileChart({
       1439,
     )
     const value = clamp(((plot.bottom - pointerY) / plotHeight) * MAX_INTENSITY_PERCENT, 0, MAX_INTENSITY_PERCENT)
-
-    onChangePoint(target.pointId, {
+    const timeUpdates = {
       hour: Math.floor(minuteOfDay / 60),
       minute: minuteOfDay % 60,
+    }
+
+    if ('mode' in target) {
+      onChangePoint(target.pointId, timeUpdates)
+      setDragTooltip({
+        x: clamp(pointerX + 16, 90, chartSize.width - 190),
+        y: 360,
+        label: `${language === 'de' ? 'Zeit' : 'Time'} ${formatAxisTime(timeUpdates.hour * 60 + timeUpdates.minute)}`,
+      })
+      return
+    }
+
+    if (lockedChannels[target.channel]) {
+      return
+    }
+
+    const currentPoint = sorted.find((point) => point.id === target.pointId)
+    const currentMinute = currentPoint ? currentPoint.hour * 60 + currentPoint.minute : timeUpdates.hour * 60 + timeUpdates.minute
+
+    onChangePoint(target.pointId, {
       [target.channel]: value,
+    })
+    setDragTooltip({
+      x: clamp(pointerX + 16, 90, chartSize.width - 210),
+      y: clamp(pointerY - 18, 38, 318),
+      label: `${formatAxisTime(currentMinute)} / ${channelLabel(target.channel)} ${Math.round(value)}%`,
     })
   }
 
   function startDrag(event: PointerEvent<SVGCircleElement>, pointId: string, channel: ChannelKey) {
+    if (lockedChannels[channel]) {
+      return
+    }
+
     const target = { pointId, channel }
 
     event.currentTarget.setPointerCapture(event.pointerId)
+    onBeginEdit()
+    setDragTarget(target)
+    updateFromPointer(event, target)
+  }
+
+  function startTimeDrag(event: PointerEvent<SVGCircleElement>, pointId: string) {
+    const target = { pointId, mode: 'time' as const }
+
+    event.currentTarget.setPointerCapture(event.pointerId)
+    onBeginEdit()
     setDragTarget(target)
     updateFromPointer(event, target)
   }
@@ -893,14 +1835,14 @@ function ProfileChart({
   }
 
   return (
-    <div className="chart-panel" aria-label="WRGB Tagesverlauf">
+    <div className="chart-panel" aria-label={text.chartLabel}>
       <div className="chart-toolbar">
         <div>
-          <strong>Lichtkurve</strong>
-          <span>Punkte ziehen, um Zeit und Intensität zu ändern.</span>
+          <strong>{text.lightCurve}</strong>
+          <span>{text.chartHelp}</span>
         </div>
         <button type="button" className="ghost" onClick={onToggleViewMode}>
-          {viewMode === 'day' ? 'Auf Schaltpunkte zoomen' : '24 Stunden anzeigen'}
+          {viewMode === 'day' ? text.zoomPoints : text.showFullDay}
         </button>
       </div>
       <div className="chart">
@@ -909,10 +1851,16 @@ function ProfileChart({
           viewBox={`0 0 ${chartSize.width} ${chartSize.height}`}
           role="img"
           onPointerMove={moveDrag}
-          onPointerUp={() => setDragTarget(null)}
-          onPointerLeave={() => setDragTarget(null)}
+          onPointerUp={() => {
+            setDragTarget(null)
+            setDragTooltip(null)
+          }}
+          onPointerLeave={() => {
+            setDragTarget(null)
+            setDragTooltip(null)
+          }}
         >
-          <title>WRGB Tagesverlauf</title>
+          <title>{text.chartLabel}</title>
           <line x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom} className="axis-line" />
           <line x1={plot.left} x2={plot.right} y1={plot.bottom} y2={plot.bottom} className="axis-line" />
           {xTicks.map((minute) => (
@@ -948,13 +1896,35 @@ function ProfileChart({
                   cx={x(point)}
                   cy={y(point[channel.key])}
                   r="6"
-                  className={`chart-handle ${channel.key}`}
+                  className={lockedChannels[channel.key] ? `chart-handle ${channel.key} locked` : `chart-handle ${channel.key}`}
                   vectorEffect="non-scaling-stroke"
                   onPointerDown={(event) => startDrag(event, point.id, channel.key)}
                 />
               ))}
             </g>
           ))}
+          <line x1={plot.left} x2={plot.right} y1="395" y2="395" className="time-rail" />
+          {sorted.map((point) => (
+            <g key={`time-${point.id}`}>
+              <line x1={x(point)} x2={x(point)} y1={plot.bottom} y2="395" className="time-guide" />
+              <circle
+                cx={x(point)}
+                cy="395"
+                r="7"
+                className="time-handle"
+                vectorEffect="non-scaling-stroke"
+                onPointerDown={(event) => startTimeDrag(event, point.id)}
+              />
+            </g>
+          ))}
+          {dragTooltip && (
+            <g className="drag-tooltip">
+              <rect x={dragTooltip.x} y={dragTooltip.y - 24} width="176" height="30" rx="6" />
+              <text x={dragTooltip.x + 10} y={dragTooltip.y - 5}>
+                {dragTooltip.label}
+              </text>
+            </g>
+          )}
         </svg>
         <div className="chart-legend">
           {channelMeta.map((channel) => (
@@ -988,6 +1958,14 @@ function formatAxisTime(minute: number) {
   }
 
   return `${Math.floor(minute / 60).toString().padStart(2, '0')}:${(minute % 60).toString().padStart(2, '0')}`
+}
+
+function channelLabel(channel: ChannelKey) {
+  return channelMeta.find((item) => item.key === channel)?.label ?? channel
+}
+
+function isChannelKey(key: keyof FzonePoint): key is ChannelKey {
+  return channelMeta.some((item) => item.key === key)
 }
 
 export default App
